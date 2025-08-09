@@ -63,7 +63,7 @@ git clone https://github.com/username/tiltify.git
 img/Screenshot 2025-08-09 161134.png
 *Normal homepage when device is perfectly still.*
 
-
+img/Screenshot 2025-08-09 161202.png
 *Page slightly tilted when phone is angled.*
 
 
