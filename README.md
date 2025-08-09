@@ -60,34 +60,16 @@ git clone https://github.com/username/tiltify.git
 
 ### Screenshots
 
-!\[Screenshot1]\(Add screenshot 1 link)
+img/Screenshot 2025-08-09 161134.png
 *Normal homepage when device is perfectly still.*
 
-!\[Screenshot2]\(Add screenshot 2 link)
+
 *Page slightly tilted when phone is angled.*
 
-!\[Screenshot3]\(Add screenshot 3 link)
-*Extreme tilt after violently shaking the phone.*
 
-### Diagrams
 
-!\[Workflow]\(Add workflow diagram link)
-*Workflow: Device sensors → JavaScript motion handler → CSS transform → Tilted page.*
 
----
 
-## Project Demo
-
-### Video
-
-\[Add demo video link here]
-*Shows page reacting live to physical tilts and rotations.*
-
-### Additional Demos
-
-* \[Optional: Link to GitHub Pages live demo]
-
----
 
 ## Team Contributions
 
