@@ -167,15 +167,15 @@ let velocities = [];
 let tiltForce = { x: 0, y: 0 };
 let friction = 0.9;
 let motionActive = false;
-let originalTransforms = []; // <-- Store original transforms
+let originalTransforms = [];
+let maxSpeed = 1.5; // Limit max movement speed for smoother motion
 
 function initClutterElements() {
     items = Array.from(document.querySelectorAll("body *:not(script):not(style):not(link):not(canvas)"));
     velocities = items.map(() => ({ x: 0, y: 0 }));
-    originalTransforms = items.map(el => el.style.transform || ""); // Save original
+    originalTransforms = items.map(el => el.style.transform || "");
 
     items.forEach(el => {
-        // Avoid breaking absolute/fixed elements
         if (getComputedStyle(el).position === "static") {
             el.style.position = "relative";
         }
@@ -202,15 +202,23 @@ function requestMotionPermission() {
 }
 
 function handleTilt(event) {
-    tiltForce.x = (event.gamma || 0) / 20;
-    tiltForce.y = (event.beta || 0) / 20;
+    // Smaller divisor = slower movement
+    tiltForce.x = (event.gamma || 0) / 50; 
+    tiltForce.y = (event.beta || 0) / 50;
 }
 
 function updatePhysics() {
     if (motionActive) {
+        let winW = window.innerWidth;
+        let winH = window.innerHeight;
+
         items.forEach((el, i) => {
-            velocities[i].x += tiltForce.x + (Math.random() - 0.5) * 0.2;
-            velocities[i].y += tiltForce.y + (Math.random() - 0.5) * 0.2;
+            velocities[i].x += tiltForce.x + (Math.random() - 0.5) * 0.05;
+            velocities[i].y += tiltForce.y + (Math.random() - 0.5) * 0.05;
+
+            // Limit speed
+            velocities[i].x = Math.max(Math.min(velocities[i].x, maxSpeed), -maxSpeed);
+            velocities[i].y = Math.max(Math.min(velocities[i].y, maxSpeed), -maxSpeed);
 
             velocities[i].x *= friction;
             velocities[i].y *= friction;
@@ -218,16 +226,26 @@ function updatePhysics() {
             let tx = parseFloat(el.dataset.tx) + velocities[i].x;
             let ty = parseFloat(el.dataset.ty) + velocities[i].y;
 
+            // Get element dimensions
+            let rect = el.getBoundingClientRect();
+            let maxX = (winW - rect.width) / 2; // half-space available
+            let minX = -maxX;
+            let maxY = (winH - rect.height) / 2;
+            let minY = -maxY;
+
+            // Clamp position so it stays in viewport
+            tx = Math.max(minX, Math.min(maxX, tx));
+            ty = Math.max(minY, Math.min(maxY, ty));
+
             el.dataset.tx = tx;
             el.dataset.ty = ty;
-
             el.style.transform = `${originalTransforms[i]} translate(${tx}px, ${ty}px)`;
         });
     }
     requestAnimationFrame(updatePhysics);
 }
 
-// Create motion toggle button
+// Motion button
 $(document).ready(function () {
     let btn = $('<button id="motionBtn">Enable Motion</button>').css({
         position: 'fixed',
@@ -245,7 +263,6 @@ $(document).ready(function () {
 
     $('body').append(btn);
 
-    // Load saved state from localStorage
     let savedMotionState = localStorage.getItem('motionActive') === 'true';
     motionActive = savedMotionState;
 
@@ -266,8 +283,6 @@ $(document).ready(function () {
             motionActive = false;
             localStorage.setItem('motionActive', 'false');
             $(this).text("Enable Motion");
-
-            // Restore original transforms
             items.forEach((el, i) => {
                 el.style.transform = originalTransforms[i];
                 el.dataset.tx = 0;
@@ -278,7 +293,5 @@ $(document).ready(function () {
 
     updatePhysics();
 });
-
-
 
 })(jQuery);
