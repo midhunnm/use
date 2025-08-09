@@ -67,7 +67,7 @@
         }
     }
 
-    // Worldwide Sales Chart
+    // Example Charts Initialization
     safeChart("#worldwide-sales", {
         type: "bar",
         data: {
@@ -81,7 +81,6 @@
         options: { responsive: true }
     });
 
-    // Sales & Revenue Chart
     safeChart("#salse-revenue", {
         type: "line",
         data: {
@@ -94,7 +93,6 @@
         options: { responsive: true }
     });
 
-    // Single Line Chart
     safeChart("#line-chart", {
         type: "line",
         data: {
@@ -109,7 +107,6 @@
         options: { responsive: true }
     });
 
-    // Single Bar Chart
     safeChart("#bar-chart", {
         type: "bar",
         data: {
@@ -128,7 +125,6 @@
         options: { responsive: true }
     });
 
-    // Pie Chart
     safeChart("#pie-chart", {
         type: "pie",
         data: {
@@ -147,7 +143,6 @@
         options: { responsive: true }
     });
 
-    // Doughnut Chart
     safeChart("#doughnut-chart", {
         type: "doughnut",
         data: {
@@ -175,9 +170,11 @@
     let originalStyles = [];
 
     function initClutterElements() {
+        // Add body class to isolate motion CSS if needed
+        document.body.classList.add('motion-on');
         items = Array.from(document.querySelectorAll("body *:not(script):not(style):not(link):not(canvas)"));
         velocities = items.map(() => ({ x: 0, y: 0 }));
-        // Record original styles (inline only)
+        // Capture original inline styles
         originalStyles = items.map(el => ({
             transform: el.style.transform || '',
             position: el.style.position || '',
@@ -185,7 +182,7 @@
         }));
         items.forEach(el => {
             if (!el.style.position) {
-                el.style.position = "relative";
+                el.style.position = "relative"; // Apply only if no position set
             }
             el.style.transition = "none";
             el.dataset.tx = 0;
@@ -195,22 +192,33 @@
 
     function restoreOriginalStyles() {
         items.forEach((el, i) => {
-            // Remove inline transform so CSS takes effect, or reset to original if any
+            // Double transform reset to clear GPU cache
+            el.style.transform = 'none';
+            // Trigger reflow
+            el.offsetHeight;
+            // Restore original transform or clear
             el.style.transform = originalStyles[i].transform || '';
-            // Remove inline position if we added it and there was none before
-            if (originalStyles[i].position !== '') {
+
+            // Restore or clear position property
+            if (originalStyles[i].position) {
                 el.style.position = originalStyles[i].position;
             } else {
                 el.style.removeProperty('position');
             }
-            // Restore or clear transition
+
+            // Restore transition to original or empty
             el.style.transition = originalStyles[i].transition || '';
-            // Remove tilt data
+
+            // Reset dataset values
             el.dataset.tx = 0;
             el.dataset.ty = 0;
         });
-        // Force browser reflow to prevent visual artifacts
-        document.body.offsetHeight;
+
+        // Remove body class to isolate motion mode CSS
+        document.body.classList.remove('motion-on');
+
+        // Force full browser repaint
+        void document.body.offsetWidth;
     }
 
     function requestMotionPermission() {
@@ -255,7 +263,7 @@
         requestAnimationFrame(updatePhysics);
     }
 
-    // Create motion toggle button
+    // Setup motion toggle button
     $(document).ready(function () {
         let btn = $('<button id="motionBtn">Enable Motion</button>').css({
             position: 'fixed',
@@ -273,7 +281,7 @@
 
         $('body').append(btn);
 
-        // Load saved state from localStorage
+        // Load saved motion state from localStorage
         let savedMotionState = localStorage.getItem('motionActive') === 'true';
         motionActive = savedMotionState;
 
