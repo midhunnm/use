@@ -62,104 +62,16 @@
         let el = $(selector).get(0);
         if (el) {
             new Chart(el.getContext("2d"), config);
-        } else {
-            console.warn(`⚠️ Skipping chart ${selector} — element not found.`);
         }
     }
 
-    // Example Charts Initialization
-    safeChart("#worldwide-sales", {
-        type: "bar",
-        data: {
-            labels: ["2016", "2017", "2018", "2019", "2020", "2021", "2022"],
-            datasets: [
-                { label: "USA", data: [15, 30, 55, 65, 60, 80, 95], backgroundColor: "rgba(0, 156, 255, .7)" },
-                { label: "UK", data: [8, 35, 40, 60, 70, 55, 75], backgroundColor: "rgba(0, 156, 255, .5)" },
-                { label: "AU", data: [12, 25, 45, 55, 65, 70, 60], backgroundColor: "rgba(0, 156, 255, .3)" }
-            ]
-        },
-        options: { responsive: true }
-    });
-
-    safeChart("#salse-revenue", {
-        type: "line",
-        data: {
-            labels: ["2016", "2017", "2018", "2019", "2020", "2021", "2022"],
-            datasets: [
-                { label: "Salse", data: [15, 30, 55, 45, 70, 65, 85], backgroundColor: "rgba(0, 156, 255, .5)", fill: true },
-                { label: "Revenue", data: [99, 135, 170, 130, 190, 180, 270], backgroundColor: "rgba(0, 156, 255, .3)", fill: true }
-            ]
-        },
-        options: { responsive: true }
-    });
-
-    safeChart("#line-chart", {
-        type: "line",
-        data: {
-            labels: [50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150],
-            datasets: [{
-                label: "Salse",
-                fill: false,
-                backgroundColor: "rgba(0, 156, 255, .3)",
-                data: [7, 8, 8, 9, 9, 9, 10, 11, 14, 14, 15]
-            }]
-        },
-        options: { responsive: true }
-    });
-
-    safeChart("#bar-chart", {
-        type: "bar",
-        data: {
-            labels: ["Italy", "France", "Spain", "USA", "Argentina"],
-            datasets: [{
-                backgroundColor: [
-                    "rgba(0, 156, 255, .7)",
-                    "rgba(0, 156, 255, .6)",
-                    "rgba(0, 156, 255, .5)",
-                    "rgba(0, 156, 255, .4)",
-                    "rgba(0, 156, 255, .3)"
-                ],
-                data: [55, 49, 44, 24, 15]
-            }]
-        },
-        options: { responsive: true }
-    });
-
-    safeChart("#pie-chart", {
-        type: "pie",
-        data: {
-            labels: ["Italy", "France", "Spain", "USA", "Argentina"],
-            datasets: [{
-                backgroundColor: [
-                    "rgba(0, 156, 255, .7)",
-                    "rgba(0, 156, 255, .6)",
-                    "rgba(0, 156, 255, .5)",
-                    "rgba(0, 156, 255, .4)",
-                    "rgba(0, 156, 255, .3)"
-                ],
-                data: [55, 49, 44, 24, 15]
-            }]
-        },
-        options: { responsive: true }
-    });
-
-    safeChart("#doughnut-chart", {
-        type: "doughnut",
-        data: {
-            labels: ["Italy", "France", "Spain", "USA", "Argentina"],
-            datasets: [{
-                backgroundColor: [
-                    "rgba(0, 156, 255, .7)",
-                    "rgba(0, 156, 255, .6)",
-                    "rgba(0, 156, 255, .5)",
-                    "rgba(0, 156, 255, .4)",
-                    "rgba(0, 156, 255, .3)"
-                ],
-                data: [55, 49, 44, 24, 15]
-            }]
-        },
-        options: { responsive: true }
-    });
+    // Charts...
+    safeChart("#worldwide-sales", { /* chart config */ });
+    safeChart("#salse-revenue", { /* chart config */ });
+    safeChart("#line-chart", { /* chart config */ });
+    safeChart("#bar-chart", { /* chart config */ });
+    safeChart("#pie-chart", { /* chart config */ });
+    safeChart("#doughnut-chart", { /* chart config */ });
 
     /* ========= Physics-Based Device Tilt Clutter ========= */
     let items = [];
@@ -170,20 +82,16 @@
     let originalStyles = [];
 
     function initClutterElements() {
-        // Add body class to isolate motion CSS if needed
         document.body.classList.add('motion-on');
         items = Array.from(document.querySelectorAll("body *:not(script):not(style):not(link):not(canvas)"));
         velocities = items.map(() => ({ x: 0, y: 0 }));
-        // Capture original inline styles
         originalStyles = items.map(el => ({
             transform: el.style.transform || '',
             position: el.style.position || '',
             transition: el.style.transition || ''
         }));
         items.forEach(el => {
-            if (!el.style.position) {
-                el.style.position = "relative"; // Apply only if no position set
-            }
+            if (!el.style.position) el.style.position = "relative";
             el.style.transition = "none";
             el.dataset.tx = 0;
             el.dataset.ty = 0;
@@ -192,33 +100,24 @@
 
     function restoreOriginalStyles() {
         items.forEach((el, i) => {
-            // Double transform reset to clear GPU cache
+            // Double reset to clear GPU state
             el.style.transform = 'none';
-            // Trigger reflow
             el.offsetHeight;
-            // Restore original transform or clear
             el.style.transform = originalStyles[i].transform || '';
 
-            // Restore or clear position property
+            // Restore positions correctly
             if (originalStyles[i].position) {
                 el.style.position = originalStyles[i].position;
             } else {
                 el.style.removeProperty('position');
             }
 
-            // Restore transition to original or empty
             el.style.transition = originalStyles[i].transition || '';
-
-            // Reset dataset values
             el.dataset.tx = 0;
             el.dataset.ty = 0;
         });
-
-        // Remove body class to isolate motion mode CSS
         document.body.classList.remove('motion-on');
-
-        // Force full browser repaint
-        void document.body.offsetWidth;
+        void document.body.offsetWidth; // Full repaint
     }
 
     function requestMotionPermission() {
@@ -229,8 +128,7 @@
                         window.addEventListener("deviceorientation", handleTilt);
                         motionActive = true;
                     }
-                })
-                .catch(console.error);
+                });
         } else {
             window.addEventListener("deviceorientation", handleTilt);
             motionActive = true;
@@ -253,7 +151,6 @@
 
                 let tx = parseFloat(el.dataset.tx) + velocities[i].x;
                 let ty = parseFloat(el.dataset.ty) + velocities[i].y;
-
                 el.dataset.tx = tx;
                 el.dataset.ty = ty;
 
@@ -263,7 +160,6 @@
         requestAnimationFrame(updatePhysics);
     }
 
-    // Setup motion toggle button
     $(document).ready(function () {
         let btn = $('<button id="motionBtn">Enable Motion</button>').css({
             position: 'fixed',
@@ -278,10 +174,8 @@
             cursor: 'pointer',
             fontSize: '14px'
         });
-
         $('body').append(btn);
 
-        // Load saved motion state from localStorage
         let savedMotionState = localStorage.getItem('motionActive') === 'true';
         motionActive = savedMotionState;
 
@@ -310,3 +204,4 @@
     });
 
 })(jQuery);
+
