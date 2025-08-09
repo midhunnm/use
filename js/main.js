@@ -11,7 +11,7 @@
     };
     spinner();
 
-    // Back to top button
+    // Back to top
     $(window).scroll(function () {
         if ($(this).scrollTop() > 300) {
             $('.back-to-top').fadeIn('slow');
@@ -24,13 +24,13 @@
         return false;
     });
 
-    // Sidebar Toggler
+    // Sidebar toggler
     $('.sidebar-toggler').click(function () {
         $('.sidebar, .content').toggleClass("open");
         return false;
     });
 
-    // Progress Bar
+    // Progress bar
     $('.pg-bar').waypoint(function () {
         $('.progress .progress-bar').each(function () {
             $(this).css("width", $(this).attr("aria-valuenow") + '%');
@@ -39,10 +39,7 @@
 
     // Calendar
     if ($('#calender').length) {
-        $('#calender').datetimepicker({
-            inline: true,
-            format: 'L'
-        });
+        $('#calender').datetimepicker({ inline: true, format: 'L' });
     }
 
     // Testimonials carousel
@@ -57,15 +54,11 @@
         });
     }
 
-    // ====== Safe Chart Initialization ======
+    // Chart helper
     function safeChart(selector, config) {
         let el = $(selector).get(0);
         if (el && typeof Chart !== "undefined") {
             new Chart(el.getContext("2d"), config);
-        } else if (!el) {
-            console.warn(`⚠️ Skipping chart ${selector} — element not found.`);
-        } else {
-            console.warn(`⚠️ Chart.js not loaded — skipping ${selector}`);
         }
     }
 
@@ -158,41 +151,19 @@
         options: { responsive: true }
     });
 
-    /* ========= Physics-Based Device Tilt Clutter ========= */
-    let items = [];
-    let velocities = [];
-    let tiltForce = { x: 0, y: 0 };
-    let friction = 0.9;
-    let motionActive = false;
-    let originalPositions = [];
+    /* ===== Device Tilt Physics ===== */
+    let items = [], velocities = [], tiltForce = { x: 0, y: 0 }, motionActive = false, originalPositions = [];
 
     function initClutterElements() {
-        const exclude = [
-            "script",
-            "style",
-            "link",
-            "canvas",
-            ".sidebar",
-            ".navbar",
-            "header",
-            "footer"
-        ];
-
-        items = Array.from(document.querySelectorAll(
-            `body *:not(${exclude.join('):not(')})`
-        )).filter(el => {
-            return el !== document.body && el !== document.documentElement;
-        });
+        const exclude = ["script", "style", "link", "canvas", ".sidebar", ".navbar", "header", "footer"];
+        items = Array.from(document.querySelectorAll(`body *:not(${exclude.join('):not(')})`))
+            .filter(el => el !== document.body && el !== document.documentElement);
 
         velocities = items.map(() => ({ x: 0, y: 0 }));
-        originalPositions = items.map(el => {
-            const rect = el.getBoundingClientRect();
-            return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
-        });
+        originalPositions = items.map(el => el.getBoundingClientRect());
 
         items.forEach(el => {
             el.style.position = "relative";
-            el.style.transition = "none";
             el.dataset.tx = 0;
             el.dataset.ty = 0;
         });
@@ -200,14 +171,12 @@
 
     function requestMotionPermission() {
         if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
-            DeviceMotionEvent.requestPermission()
-                .then(response => {
-                    if (response === "granted") {
-                        window.addEventListener("deviceorientation", handleTilt);
-                        motionActive = true;
-                    }
-                })
-                .catch(console.error);
+            DeviceMotionEvent.requestPermission().then(res => {
+                if (res === "granted") {
+                    window.addEventListener("deviceorientation", handleTilt);
+                    motionActive = true;
+                }
+            });
         } else {
             window.addEventListener("deviceorientation", handleTilt);
             motionActive = true;
@@ -215,47 +184,47 @@
     }
 
     function handleTilt(event) {
-        tiltForce.x = (event.gamma || 0) / 20;
-        tiltForce.y = (event.beta || 0) / 20;
+        tiltForce.x = (event.gamma || 0) / 40; // smaller = slower movement
+        tiltForce.y = (event.beta || 0) / 40;
     }
 
-    function update() {
-    const screenWidth = window.innerWidth;
-    const screenHeight = window.innerHeight;
+    function updatePhysics() {
+        const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
 
-    items.forEach((el, i) => {
-        let tx = parseFloat(el.dataset.tx || 0);
-        let ty = parseFloat(el.dataset.ty || 0);
+        items.forEach((el, i) => {
+            let tx = parseFloat(el.dataset.tx || 0);
+            let ty = parseFloat(el.dataset.ty || 0);
 
-        velocities[i].x *= 0.95; // friction
-        velocities[i].y *= 0.95;
+            velocities[i].x += tiltForce.x;
+            velocities[i].y += tiltForce.y;
 
-        tx += velocities[i].x;
-        ty += velocities[i].y;
+            velocities[i].x *= 0.9; // friction
+            velocities[i].y *= 0.9;
 
-        // Get element size
-        const elWidth = originalPositions[i].width;
-        const elHeight = originalPositions[i].height;
+            tx += velocities[i].x;
+            ty += velocities[i].y;
 
-        // Clamp within viewport
-        const maxX = (screenWidth - elWidth) / 2;  // because we use translate relative
-        const minX = -maxX;
-        const maxY = (screenHeight - elHeight) / 2;
-        const minY = -maxY;
+            const elWidth = originalPositions[i].width;
+            const elHeight = originalPositions[i].height;
 
-        tx = Math.max(minX, Math.min(maxX, tx));
-        ty = Math.max(minY, Math.min(maxY, ty));
+            const maxX = (screenWidth - elWidth) / 2;
+            const minX = -maxX;
+            const maxY = (screenHeight - elHeight) / 2;
+            const minY = -maxY;
 
-        el.dataset.tx = tx;
-        el.dataset.ty = ty;
+            tx = Math.max(minX, Math.min(maxX, tx));
+            ty = Math.max(minY, Math.min(maxY, ty));
 
-        el.style.transform = `translate(${tx}px, ${ty}px)`;
-    });
+            el.dataset.tx = tx;
+            el.dataset.ty = ty;
 
-    requestAnimationFrame(update);
-}
+            el.style.transform = `translate(${tx}px, ${ty}px)`;
+        });
 
-    // Create motion toggle button
+        if (motionActive) requestAnimationFrame(updatePhysics);
+    }
+
     $(document).ready(function () {
         let btn = $('<button id="motionBtn">Enable Motion</button>').css({
             position: 'fixed',
@@ -280,6 +249,7 @@
             initClutterElements();
             requestMotionPermission();
             btn.text("Disable Motion");
+            updatePhysics();
         }
 
         btn.on('click', function () {
@@ -289,6 +259,7 @@
                 motionActive = true;
                 localStorage.setItem('motionActive', 'true');
                 $(this).text("Disable Motion");
+                updatePhysics();
             } else {
                 motionActive = false;
                 localStorage.setItem('motionActive', 'false');
@@ -301,8 +272,6 @@
                 });
             }
         });
-
-        updatePhysics();
     });
 
 })(jQuery);
