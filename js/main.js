@@ -200,26 +200,40 @@
         tiltForce.y = (event.beta || 0) / 20;
     }
 
-    function updatePhysics() {
-        if (motionActive) {
-            items.forEach((el, i) => {
-                velocities[i].x += tiltForce.x + (Math.random() - 0.5) * 0.2;
-                velocities[i].y += tiltForce.y + (Math.random() - 0.5) * 0.2;
+    const MAX_OFFSET = 30;  // maximum movement in pixels
+const SPRING = 0.05;    // pull-back speed
 
-                velocities[i].x *= friction;
-                velocities[i].y *= friction;
+function updatePhysics() {
+    if (motionActive) {
+        items.forEach((el, i) => {
+            // Apply tilt & random noise
+            velocities[i].x += tiltForce.x + (Math.random() - 0.5) * 0.2;
+            velocities[i].y += tiltForce.y + (Math.random() - 0.5) * 0.2;
 
-                let tx = parseFloat(el.dataset.tx) + velocities[i].x;
-                let ty = parseFloat(el.dataset.ty) + velocities[i].y;
+            // Pull toward 0 (spring-back)
+            velocities[i].x += -parseFloat(el.dataset.tx) * SPRING;
+            velocities[i].y += -parseFloat(el.dataset.ty) * SPRING;
 
-                el.dataset.tx = tx;
-                el.dataset.ty = ty;
+            // Apply friction
+            velocities[i].x *= friction;
+            velocities[i].y *= friction;
 
-                el.style.transform = `translate(${tx}px, ${ty}px)`;
-            });
-        }
-        requestAnimationFrame(updatePhysics);
+            // Update position
+            let tx = parseFloat(el.dataset.tx) + velocities[i].x;
+            let ty = parseFloat(el.dataset.ty) + velocities[i].y;
+
+            // Clamp to prevent going out of bounds
+            tx = Math.max(-MAX_OFFSET, Math.min(MAX_OFFSET, tx));
+            ty = Math.max(-MAX_OFFSET, Math.min(MAX_OFFSET, ty));
+
+            el.dataset.tx = tx;
+            el.dataset.ty = ty;
+            el.style.transform = `translate(${tx}px, ${ty}px)`;
+        });
     }
+    requestAnimationFrame(updatePhysics);
+}
+
 
     // Create motion toggle button
     $(document).ready(function () {
