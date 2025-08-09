@@ -257,26 +257,33 @@
         btn.text("Disable Motion");
     }
 
-    btn.on('click', function () {
-        if (!motionActive) {
-            initClutterElements();
-            requestMotionPermission();
-            motionActive = true;
-            localStorage.setItem('motionActive', 'true');
-            $(this).text("Disable Motion");
-        } else {
-            motionActive = false;
-            localStorage.setItem('motionActive', 'false');
-            $(this).text("Enable Motion");
+   btn.on('click', function () {
+    if (!motionActive) {
+        initClutterElements();
+        requestMotionPermission();
+        motionActive = true;
+        localStorage.setItem('motionActive', 'true');
+        $(this).text("Disable Motion");
+    } else {
+        motionActive = false;
+        localStorage.setItem('motionActive', 'false');
+        $(this).text("Enable Motion");
 
-            // Optional: reset transforms when disabling motion
-            items.forEach(el => {
-                el.style.transform = '';
-                el.dataset.tx = 0;
-                el.dataset.ty = 0;
-            });
-        }
-    });
+        // Smoothly reset transforms when disabling motion
+        items.forEach(el => {
+            el.style.transition = 'transform 0.5s ease-out'; // smooth transition
+            el.style.transform = 'translate(0px, 0px)';
+            el.dataset.tx = 0;
+            el.dataset.ty = 0;
+
+            // After animation, remove transition so physics works normally next time
+            setTimeout(() => {
+                el.style.transition = 'none';
+            }, 500);
+        });
+    }
+});
+
 
     updatePhysics();
 });
