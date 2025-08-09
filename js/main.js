@@ -161,82 +161,74 @@
         options: { responsive: true }
     });
 
-    /* ========= Physics-Based Device Tilt Clutter ========= */
-    let items = [];
-    let velocities = [];
-    let tiltForce = { x: 0, y: 0 };
-    let friction = 0.9;
-    let motionActive = false;
+   /* ========= Physics-Based Device Tilt Clutter ========= */
+let items = [];
+let velocities = [];
+let tiltForce = { x: 0, y: 0 };
+let friction = 0.9;
+let motionActive = false;
+let originalTransforms = []; // <-- Store original transforms
 
-    function initClutterElements() {
-        items = Array.from(document.querySelectorAll("body *:not(script):not(style):not(link):not(canvas)"));
-        velocities = items.map(() => ({ x: 0, y: 0 }));
-        items.forEach(el => {
+function initClutterElements() {
+    items = Array.from(document.querySelectorAll("body *:not(script):not(style):not(link):not(canvas)"));
+    velocities = items.map(() => ({ x: 0, y: 0 }));
+    originalTransforms = items.map(el => el.style.transform || ""); // Save original
+
+    items.forEach(el => {
+        // Avoid breaking absolute/fixed elements
+        if (getComputedStyle(el).position === "static") {
             el.style.position = "relative";
-            el.style.transition = "none";
-            el.dataset.tx = 0;
-            el.dataset.ty = 0;
-        });
-    }
-
-    function requestMotionPermission() {
-        if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
-            DeviceMotionEvent.requestPermission()
-                .then(response => {
-                    if (response === "granted") {
-                        window.addEventListener("deviceorientation", handleTilt);
-                        motionActive = true;
-                    }
-                })
-                .catch(console.error);
-        } else {
-            window.addEventListener("deviceorientation", handleTilt);
-            motionActive = true;
         }
-    }
+        el.style.transition = "none";
+        el.dataset.tx = 0;
+        el.dataset.ty = 0;
+    });
+}
 
-    function handleTilt(event) {
-        tiltForce.x = (event.gamma || 0) / 20;
-        tiltForce.y = (event.beta || 0) / 20;
+function requestMotionPermission() {
+    if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+        DeviceMotionEvent.requestPermission()
+            .then(response => {
+                if (response === "granted") {
+                    window.addEventListener("deviceorientation", handleTilt);
+                    motionActive = true;
+                }
+            })
+            .catch(console.error);
+    } else {
+        window.addEventListener("deviceorientation", handleTilt);
+        motionActive = true;
     }
+}
 
-    const MAX_OFFSET = 30;  // maximum movement in pixels
-const SPRING = 0.05;    // pull-back speed
+function handleTilt(event) {
+    tiltForce.x = (event.gamma || 0) / 20;
+    tiltForce.y = (event.beta || 0) / 20;
+}
 
 function updatePhysics() {
     if (motionActive) {
         items.forEach((el, i) => {
-            // Apply tilt & random noise
             velocities[i].x += tiltForce.x + (Math.random() - 0.5) * 0.2;
             velocities[i].y += tiltForce.y + (Math.random() - 0.5) * 0.2;
 
-            // Pull toward 0 (spring-back)
-            velocities[i].x += -parseFloat(el.dataset.tx) * SPRING;
-            velocities[i].y += -parseFloat(el.dataset.ty) * SPRING;
-
-            // Apply friction
             velocities[i].x *= friction;
             velocities[i].y *= friction;
 
-            // Update position
             let tx = parseFloat(el.dataset.tx) + velocities[i].x;
             let ty = parseFloat(el.dataset.ty) + velocities[i].y;
 
-            // Clamp to prevent going out of bounds
-            tx = Math.max(-MAX_OFFSET, Math.min(MAX_OFFSET, tx));
-            ty = Math.max(-MAX_OFFSET, Math.min(MAX_OFFSET, ty));
-
             el.dataset.tx = tx;
             el.dataset.ty = ty;
-            el.style.transform = `translate(${tx}px, ${ty}px)`;
+
+            el.style.transform = `${originalTransforms[i]} translate(${tx}px, ${ty}px)`;
         });
     }
     requestAnimationFrame(updatePhysics);
 }
 
-
-    // Create motion toggle button
-    $(document).ready(function () {
+// Create motion toggle button
+$(document).ready(function () {
     let btn = $('<button id="motionBtn">Enable Motion</button>').css({
         position: 'fixed',
         bottom: '20px',
@@ -275,9 +267,9 @@ function updatePhysics() {
             localStorage.setItem('motionActive', 'false');
             $(this).text("Enable Motion");
 
-            // Optional: reset transforms when disabling motion
-            items.forEach(el => {
-                el.style.transform = '';
+            // Restore original transforms
+            items.forEach((el, i) => {
+                el.style.transform = originalTransforms[i];
                 el.dataset.tx = 0;
                 el.dataset.ty = 0;
             });
@@ -286,6 +278,7 @@ function updatePhysics() {
 
     updatePhysics();
 });
+
 
 
 })(jQuery);
