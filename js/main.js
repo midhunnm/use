@@ -200,19 +200,33 @@
         tiltForce.y = (event.beta || 0) / 20;
     }
 
-    function updatePhysics() {
+    let originalPositions = [];
+
+function initClutterElements() {
+    items = Array.from(document.querySelectorAll("body *:not(script):not(style):not(link):not(canvas)"));
+    velocities = items.map(() => ({ x: 0, y: 0 }));
+    originalPositions = items.map(el => {
+        const rect = el.getBoundingClientRect();
+        return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+    });
+    items.forEach(el => {
+        el.style.position = "relative";
+        el.style.transition = "none";
+        el.dataset.tx = 0;
+        el.dataset.ty = 0;
+    });
+}
+
+function updatePhysics() {
     if (motionActive) {
         const screenW = window.innerWidth;
         const screenH = window.innerHeight;
 
         items.forEach((el, i) => {
-            const rect = el.getBoundingClientRect();
-            const maxX = screenW - rect.width;
-            const maxY = screenH - rect.height;
+            const orig = originalPositions[i];
 
-            // Update velocities with tilt + small random jitter
-            velocities[i].x += tiltForce.x + (Math.random() - 0.5) * 0.1; // reduced jitter
-            velocities[i].y += tiltForce.y + (Math.random() - 0.5) * 0.1;
+            velocities[i].x += tiltForce.x * 0.5; // slower movement
+            velocities[i].y += tiltForce.y * 0.5;
 
             velocities[i].x *= friction;
             velocities[i].y *= friction;
@@ -220,9 +234,15 @@
             let tx = parseFloat(el.dataset.tx) + velocities[i].x;
             let ty = parseFloat(el.dataset.ty) + velocities[i].y;
 
-            // Clamp positions so items stay inside the viewport
-            tx = Math.max(-rect.left, Math.min(tx, maxX - rect.left));
-            ty = Math.max(-rect.top, Math.min(ty, maxY - rect.top));
+            // Calculate allowed movement so element stays within viewport
+            const maxX = screenW - orig.width - orig.left;
+            const minX = -orig.left;
+            const maxY = screenH - orig.height - orig.top;
+            const minY = -orig.top;
+
+            // Clamp position
+            tx = Math.max(minX, Math.min(tx, maxX));
+            ty = Math.max(minY, Math.min(ty, maxY));
 
             el.dataset.tx = tx;
             el.dataset.ty = ty;
@@ -231,6 +251,7 @@
     }
     requestAnimationFrame(updatePhysics);
 }
+
 
 
     // Create motion toggle button
