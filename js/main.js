@@ -177,16 +177,13 @@
     function initClutterElements() {
         items = Array.from(document.querySelectorAll("body *:not(script):not(style):not(link):not(canvas)"));
         velocities = items.map(() => ({ x: 0, y: 0 }));
-        // Record original styles (inline only)
         originalStyles = items.map(el => ({
             transform: el.style.transform || '',
             position: el.style.position || '',
             transition: el.style.transition || ''
         }));
         items.forEach(el => {
-            if (!el.style.position) {
-                el.style.position = "relative";
-            }
+            el.style.position = "relative";
             el.style.transition = "none";
             el.dataset.tx = 0;
             el.dataset.ty = 0;
@@ -195,22 +192,12 @@
 
     function restoreOriginalStyles() {
         items.forEach((el, i) => {
-            // Remove inline transform so CSS takes effect, or reset to original if any
-            el.style.transform = originalStyles[i].transform || '';
-            // Remove inline position if we added it and there was none before
-            if (originalStyles[i].position !== '') {
-                el.style.position = originalStyles[i].position;
-            } else {
-                el.style.removeProperty('position');
-            }
-            // Restore or clear transition
-            el.style.transition = originalStyles[i].transition || '';
-            // Remove tilt data
+            el.style.transform = originalStyles[i].transform;
+            el.style.position = originalStyles[i].position;
+            el.style.transition = originalStyles[i].transition;
             el.dataset.tx = 0;
             el.dataset.ty = 0;
         });
-        // Force browser reflow to prevent visual artifacts
-        document.body.offsetHeight;
     }
 
     function requestMotionPermission() {
