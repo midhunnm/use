@@ -162,132 +162,118 @@
     });
 
     /* ========= Physics-Based Device Tilt Clutter ========= */
-    let items = [];
-    let velocities = [];
-    let tiltForce = { x: 0, y: 0 };
-    let friction = 0.9;
-    let motionActive = false;
+    let handleTiltBound = handleTilt; // store reference for add/remove
+let friction = 0.9;
+let velocities = [];
+let tiltForce = { x: 0, y: 0 };
+let items = [];
+let motionActive = false;
 
-    function initClutterElements() {
-        items = Array.from(document.querySelectorAll("body *:not(script):not(style):not(link):not(canvas)"));
-        velocities = items.map(() => ({ x: 0, y: 0 }));
-        items.forEach(el => {
-            el.style.position = "relative";
-            el.style.transition = "none";
-            el.dataset.tx = 0;
-            el.dataset.ty = 0;
+function initClutterElements() {
+    items = document.querySelectorAll(".clutter-item");
+    velocities = Array.from(items).map(() => ({ x: 0, y: 0 }));
+    items.forEach(el => {
+        el.dataset.tx = 0;
+        el.dataset.ty = 0;
+        el.style.transform = "translate(0px, 0px)";
+    });
+}
+
+function requestMotionPermission() {
+    if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+        DeviceMotionEvent.requestPermission()
+            .then(response => {
+                if (response === "granted") {
+                    window.addEventListener("deviceorientation", handleTiltBound);
+                }
+            })
+            .catch(console.error);
+    } else {
+        window.addEventListener("deviceorientation", handleTiltBound);
+    }
+}
+
+function handleTilt(event) {
+    tiltForce.x = event.gamma / 10 || 0;
+    tiltForce.y = event.beta / 10 || 0;
+}
+
+function updatePhysics() {
+    if (motionActive) {
+        let maxX = window.innerWidth / 2;  
+        let maxY = window.innerHeight / 2;  
+
+        items.forEach((el, i) => {
+            velocities[i].x += tiltForce.x + (Math.random() - 0.5) * 0.2;
+            velocities[i].y += tiltForce.y + (Math.random() - 0.5) * 0.2;
+
+            velocities[i].x *= friction;
+            velocities[i].y *= friction;
+
+            let tx = parseFloat(el.dataset.tx) + velocities[i].x;
+            let ty = parseFloat(el.dataset.ty) + velocities[i].y;
+
+            // Clamp so items don't drift off screen
+            tx = Math.max(-maxX, Math.min(maxX, tx));
+            ty = Math.max(-maxY, Math.min(maxY, ty));
+
+            el.dataset.tx = tx;
+            el.dataset.ty = ty;
+
+            el.style.transform = `translate(${tx}px, ${ty}px)`;
         });
     }
+    requestAnimationFrame(updatePhysics);
+}
 
-    function requestMotionPermission() {
-        if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
-            DeviceMotionEvent.requestPermission()
-                .then(response => {
-                    if (response === "granted") {
-                        window.addEventListener("deviceorientation", handleTiltBound);
-                        motionActive = true;
-                    }
-                })
-                .catch(console.error);
-        } else {
-            window.addEventListener("deviceorientation", handleTiltBound);
-            motionActive = true;
-        }
-    }
+$(document).ready(function () {
+    let btn = $("#toggle-motion");
 
-    function handleTilt(event) {
-        tiltForce.x = (event.gamma || 0) / 20;
-        tiltForce.y = (event.beta || 0) / 20;
-    }
-    let handleTiltBound = handleTilt; // keep reference for removing
-
-    function updatePhysics() {
-        if (motionActive) {
-            let maxX = window.innerWidth / 2;  // half width movement limit
-            let maxY = window.innerHeight / 2; // half height movement limit
-
-            items.forEach((el, i) => {
-                velocities[i].x += tiltForce.x + (Math.random() - 0.5) * 0.2;
-                velocities[i].y += tiltForce.y + (Math.random() - 0.5) * 0.2;
-
-                velocities[i].x *= friction;
-                velocities[i].y *= friction;
-
-                let tx = parseFloat(el.dataset.tx) + velocities[i].x;
-                let ty = parseFloat(el.dataset.ty) + velocities[i].y;
-
-                // Clamp position to keep items visible
-                tx = Math.max(-maxX, Math.min(maxX, tx));
-                ty = Math.max(-maxY, Math.min(maxY, ty));
-
-                el.dataset.tx = tx;
-                el.dataset.ty = ty;
-
-                el.style.transform = `translate(${tx}px, ${ty}px)`;
-            });
-        }
-        requestAnimationFrame(updatePhysics);
-    }
-
-    // Create motion toggle button
-    $(document).ready(function () {
-        let btn = $('<button id="motionBtn">Enable Motion</button>').css({
-            position: 'fixed',
-            bottom: '20px',
-            right: '20px',
-            zIndex: 9999,
-            padding: '10px 15px',
-            background: '#222',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '14px'
-        });
-
-        $('body').append(btn);
-
-        // Load saved state from localStorage
-        let savedMotionState = localStorage.getItem('motionActive') === 'true';
-        motionActive = savedMotionState;
-
-        if (motionActive) {
+    btn.on("click", function () {
+        if (!motionActive) {
             initClutterElements();
             requestMotionPermission();
-            btn.text("Disable Motion");
+            motionActive = true;
+            localStorage.setItem("motionActive", "true");
+            $(this).text("Disable Motion");
+        } else {
+            motionActive = false;
+            localStorage.setItem("motionActive", "false");
+            $(this).text("Enable Motion");
+
+            // Remove tilt listener & reset forces
+            window.removeEventListener("deviceorientation", handleTiltBound);
+            tiltForce.x = 0;
+            tiltForce.y = 0;
+
+            // Reset any page-level slant
+            document.body.style.transition = "transform 0.4s ease-out";
+            document.body.style.transform = "none";
+            setTimeout(() => {
+                document.body.style.transition = "none";
+            }, 400);
+
+            // Smoothly reset all elements
+            items.forEach(el => {
+                el.style.transition = "transform 0.5s ease-out";
+                el.style.transform = "translate(0px, 0px)";
+                el.dataset.tx = 0;
+                el.dataset.ty = 0;
+                setTimeout(() => {
+                    el.style.transition = "none";
+                }, 500);
+            });
         }
-
-        btn.on('click', function () {
-            if (!motionActive) {
-                initClutterElements();
-                requestMotionPermission();
-                motionActive = true;
-                localStorage.setItem('motionActive', 'true');
-                $(this).text("Disable Motion");
-            } else {
-                motionActive = false;
-                localStorage.setItem('motionActive', 'false');
-                $(this).text("Enable Motion");
-
-                // Remove tilt event listener
-                window.removeEventListener("deviceorientation", handleTiltBound);
-
-                // Reset tilt force
-                tiltForce.x = 0;
-                tiltForce.y = 0;
-
-                // Smooth reset of positions
-                items.forEach(el => {
-                    el.style.transition = 'transform 0.5s ease-out';
-                    el.style.transform = 'translate(0px, 0px)';
-                    el.dataset.tx = 0;
-                    el.dataset.ty = 0;
-                    setTimeout(() => { el.style.transition = 'none'; }, 500);
-                });
-            }
-        });
-
-        updatePhysics();
     });
+
+    // Start loop
+    updatePhysics();
+
+    // Restore motion setting if stored
+    if (localStorage.getItem("motionActive") === "true") {
+        btn.trigger("click");
+    }
+});
+
 
 })(jQuery);
