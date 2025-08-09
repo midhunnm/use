@@ -201,25 +201,37 @@
     }
 
     function updatePhysics() {
-        if (motionActive) {
-            items.forEach((el, i) => {
-                velocities[i].x += tiltForce.x + (Math.random() - 0.5) * 0.2;
-                velocities[i].y += tiltForce.y + (Math.random() - 0.5) * 0.2;
+    if (motionActive) {
+        const screenW = window.innerWidth;
+        const screenH = window.innerHeight;
 
-                velocities[i].x *= friction;
-                velocities[i].y *= friction;
+        items.forEach((el, i) => {
+            const rect = el.getBoundingClientRect();
+            const maxX = screenW - rect.width;
+            const maxY = screenH - rect.height;
 
-                let tx = parseFloat(el.dataset.tx) + velocities[i].x;
-                let ty = parseFloat(el.dataset.ty) + velocities[i].y;
+            // Update velocities with tilt + small random jitter
+            velocities[i].x += tiltForce.x + (Math.random() - 0.5) * 0.1; // reduced jitter
+            velocities[i].y += tiltForce.y + (Math.random() - 0.5) * 0.1;
 
-                el.dataset.tx = tx;
-                el.dataset.ty = ty;
+            velocities[i].x *= friction;
+            velocities[i].y *= friction;
 
-                el.style.transform = `translate(${tx}px, ${ty}px)`;
-            });
-        }
-        requestAnimationFrame(updatePhysics);
+            let tx = parseFloat(el.dataset.tx) + velocities[i].x;
+            let ty = parseFloat(el.dataset.ty) + velocities[i].y;
+
+            // Clamp positions so items stay inside the viewport
+            tx = Math.max(-rect.left, Math.min(tx, maxX - rect.left));
+            ty = Math.max(-rect.top, Math.min(ty, maxY - rect.top));
+
+            el.dataset.tx = tx;
+            el.dataset.ty = ty;
+            el.style.transform = `translate(${tx}px, ${ty}px)`;
+        });
     }
+    requestAnimationFrame(updatePhysics);
+}
+
 
     // Create motion toggle button
     $(document).ready(function () {
