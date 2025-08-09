@@ -37,7 +37,7 @@
         });
     }, { offset: '80%' });
 
-    // Calendar
+    // Calender
     if ($('#calender').length) {
         $('#calender').datetimepicker({
             inline: true,
@@ -81,7 +81,7 @@
         options: { responsive: true }
     });
 
-    // Sales & Revenue Chart
+    // Salse & Revenue Chart
     safeChart("#salse-revenue", {
         type: "line",
         data: {
@@ -99,12 +99,7 @@
         type: "line",
         data: {
             labels: [50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150],
-            datasets: [{
-                label: "Salse",
-                fill: false,
-                backgroundColor: "rgba(0, 156, 255, .3)",
-                data: [7, 8, 8, 9, 9, 9, 10, 11, 14, 14, 15]
-            }]
+            datasets: [{ label: "Salse", fill: false, backgroundColor: "rgba(0, 156, 255, .3)", data: [7, 8, 8, 9, 9, 9, 10, 11, 14, 14, 15] }]
         },
         options: { responsive: true }
     });
@@ -172,29 +167,13 @@
     let tiltForce = { x: 0, y: 0 };
     let friction = 0.9;
     let motionActive = false;
-    let originalStyles = [];
 
     function initClutterElements() {
         items = Array.from(document.querySelectorAll("body *:not(script):not(style):not(link):not(canvas)"));
         velocities = items.map(() => ({ x: 0, y: 0 }));
-        originalStyles = items.map(el => ({
-            transform: el.style.transform || '',
-            position: el.style.position || '',
-            transition: el.style.transition || ''
-        }));
         items.forEach(el => {
             el.style.position = "relative";
             el.style.transition = "none";
-            el.dataset.tx = 0;
-            el.dataset.ty = 0;
-        });
-    }
-
-    function restoreOriginalStyles() {
-        items.forEach((el, i) => {
-            el.style.transform = originalStyles[i].transform;
-            el.style.position = originalStyles[i].position;
-            el.style.transition = originalStyles[i].transition;
             el.dataset.tx = 0;
             el.dataset.ty = 0;
         });
@@ -244,48 +223,55 @@
 
     // Create motion toggle button
     $(document).ready(function () {
-        let btn = $('<button id="motionBtn">Enable Motion</button>').css({
-            position: 'fixed',
-            bottom: '20px',
-            right: '20px',
-            zIndex: 9999,
-            padding: '10px 15px',
-            background: '#222',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '14px'
-        });
+    let btn = $('<button id="motionBtn">Enable Motion</button>').css({
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        zIndex: 9999,
+        padding: '10px 15px',
+        background: '#222',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        fontSize: '14px'
+    });
 
-        $('body').append(btn);
+    $('body').append(btn);
 
-        // Load saved state from localStorage
-        let savedMotionState = localStorage.getItem('motionActive') === 'true';
-        motionActive = savedMotionState;
+    // Load saved state from localStorage
+    let savedMotionState = localStorage.getItem('motionActive') === 'true';
+    motionActive = savedMotionState;
 
-        if (motionActive) {
+    if (motionActive) {
+        initClutterElements();
+        requestMotionPermission();
+        btn.text("Disable Motion");
+    }
+
+    btn.on('click', function () {
+        if (!motionActive) {
             initClutterElements();
             requestMotionPermission();
-            btn.text("Disable Motion");
+            motionActive = true;
+            localStorage.setItem('motionActive', 'true');
+            $(this).text("Disable Motion");
+        } else {
+            motionActive = false;
+            localStorage.setItem('motionActive', 'false');
+            $(this).text("Enable Motion");
+
+            // Optional: reset transforms when disabling motion
+            items.forEach(el => {
+                el.style.transform = '';
+                el.dataset.tx = 0;
+                el.dataset.ty = 0;
+            });
         }
-
-        btn.on('click', function () {
-            if (!motionActive) {
-                initClutterElements();
-                requestMotionPermission();
-                motionActive = true;
-                localStorage.setItem('motionActive', 'true');
-                $(this).text("Disable Motion");
-            } else {
-                motionActive = false;
-                localStorage.setItem('motionActive', 'false');
-                $(this).text("Enable Motion");
-                restoreOriginalStyles();
-            }
-        });
-
-        updatePhysics();
     });
+
+    updatePhysics();
+});
+
 
 })(jQuery);
