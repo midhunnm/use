@@ -227,6 +227,27 @@ function updatePhysics() {
 }
 
 $(document).ready(function () {
+    // Auto-create toggle button if missing
+    if ($("#toggle-motion").length === 0) {
+        $("body").append(`
+            <button id="toggle-motion" 
+                style="
+                    position: fixed; 
+                    bottom: 20px; 
+                    right: 20px; 
+                    padding: 10px 15px; 
+                    font-size: 16px; 
+                    background: #333; 
+                    color: #fff; 
+                    border: none; 
+                    border-radius: 6px; 
+                    cursor: pointer;
+                    z-index: 9999;">
+                Enable Motion
+            </button>
+        `);
+    }
+
     let btn = $("#toggle-motion");
 
     btn.on("click", function () {
@@ -274,6 +295,5 @@ $(document).ready(function () {
         btn.trigger("click");
     }
 });
-
 
 })(jQuery);
