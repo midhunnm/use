@@ -60,14 +60,16 @@
     // ====== Safe Chart Initialization ======
     function safeChart(selector, config) {
         let el = $(selector).get(0);
-        if (el) {
+        if (el && typeof Chart !== "undefined") {
             new Chart(el.getContext("2d"), config);
-        } else {
+        } else if (!el) {
             console.warn(`⚠️ Skipping chart ${selector} — element not found.`);
+        } else {
+            console.warn(`⚠️ Chart.js not loaded — skipping ${selector}`);
         }
     }
 
-    // Charts (unchanged)
+    // Charts
     safeChart("#worldwide-sales", {
         type: "bar",
         data: {
@@ -165,12 +167,29 @@
     let originalPositions = [];
 
     function initClutterElements() {
-        items = Array.from(document.querySelectorAll("body *:not(script):not(style):not(link):not(canvas)"));
+        const exclude = [
+            "script",
+            "style",
+            "link",
+            "canvas",
+            ".sidebar",
+            ".navbar",
+            "header",
+            "footer"
+        ];
+
+        items = Array.from(document.querySelectorAll(
+            `body *:not(${exclude.join('):not(')})`
+        )).filter(el => {
+            return el !== document.body && el !== document.documentElement;
+        });
+
         velocities = items.map(() => ({ x: 0, y: 0 }));
         originalPositions = items.map(el => {
             const rect = el.getBoundingClientRect();
             return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
         });
+
         items.forEach(el => {
             el.style.position = "relative";
             el.style.transition = "none";
