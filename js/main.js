@@ -81,13 +81,13 @@
         options: { responsive: true }
     });
 
-    // Salse & Revenue Chart
+    // Sales & Revenue Chart
     safeChart("#salse-revenue", {
         type: "line",
         data: {
             labels: ["2016", "2017", "2018", "2019", "2020", "2021", "2022"],
             datasets: [
-                { label: "Salse", data: [15, 30, 55, 45, 70, 65, 85], backgroundColor: "rgba(0, 156, 255, .5)", fill: true },
+                { label: "Sales", data: [15, 30, 55, 45, 70, 65, 85], backgroundColor: "rgba(0, 156, 255, .5)", fill: true },
                 { label: "Revenue", data: [99, 135, 170, 130, 190, 180, 270], backgroundColor: "rgba(0, 156, 255, .3)", fill: true }
             ]
         },
@@ -99,7 +99,7 @@
         type: "line",
         data: {
             labels: [50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150],
-            datasets: [{ label: "Salse", fill: false, backgroundColor: "rgba(0, 156, 255, .3)", data: [7, 8, 8, 9, 9, 9, 10, 11, 14, 14, 15] }]
+            datasets: [{ label: "Sales", fill: false, backgroundColor: "rgba(0, 156, 255, .3)", data: [7, 8, 8, 9, 9, 9, 10, 11, 14, 14, 15] }]
         },
         options: { responsive: true }
     });
@@ -161,28 +161,28 @@
         options: { responsive: true }
     });
 
-   /* ========= Physics-Based Device Tilt Clutter ========= */
+    /* ========= Fixed Physics-Based Device Tilt ========= */
     let items = [];
     let velocities = [];
     let tiltForce = { x: 0, y: 0 };
-    let friction = 0.9;
+    let friction = 0.95;
     let motionActive = false;
     let originalTransforms = [];
-    let originalPositions = [];
+    let originalRects = [];
 
     function initClutterElements() {
         items = Array.from(document.querySelectorAll("body *:not(script):not(style):not(link):not(canvas)"));
         velocities = items.map(() => ({ x: 0, y: 0 }));
         originalTransforms = items.map(el => el.style.transform || "");
-        originalPositions = items.map(el => el.getBoundingClientRect()); // Save starting positions
+        originalRects = items.map(el => el.getBoundingClientRect());
 
         items.forEach(el => {
             if (getComputedStyle(el).position === "static") {
                 el.style.position = "relative";
             }
             el.style.transition = "none";
-            el.dataset.tx = 0;
-            el.dataset.ty = 0;
+            el.dataset.tx = "0";
+            el.dataset.ty = "0";
         });
     }
 
@@ -203,46 +203,47 @@
     }
 
     function handleTilt(event) {
-        tiltForce.x = (event.gamma || 0) / 20;
-        tiltForce.y = (event.beta || 0) / 20;
+        tiltForce.x = (event.gamma || 0) / 15;
+        tiltForce.y = (event.beta || 0) / 15;
     }
 
     function updatePhysics() {
-    if (motionActive) {
-        let screenW = window.innerWidth;
-        let screenH = window.innerHeight;
+        if (motionActive) {
+            let screenW = window.innerWidth;
+            let screenH = window.innerHeight;
 
-        items.forEach((el, i) => {
-            velocities[i].x += tiltForce.x + (Math.random() - 0.5) * 0.2;
-            velocities[i].y += tiltForce.y + (Math.random() - 0.5) * 0.2;
+            items.forEach((el, i) => {
+                velocities[i].x += tiltForce.x;
+                velocities[i].y += tiltForce.y;
 
-            velocities[i].x *= friction;
-            velocities[i].y *= friction;
+                velocities[i].x *= friction;
+                velocities[i].y *= friction;
 
-            let tx = parseFloat(el.dataset.tx) + velocities[i].x;
-            let ty = parseFloat(el.dataset.ty) + velocities[i].y;
+                let tx = parseFloat(el.dataset.tx) || 0;
+                let ty = parseFloat(el.dataset.ty) || 0;
 
-            // Get current rect so limits are always accurate
-            let rect = el.getBoundingClientRect();
+                tx += velocities[i].x;
+                ty += velocities[i].y;
 
-            let minX = -rect.left;
-            let maxX = screenW - rect.right;
-            let minY = -rect.top;
-            let maxY = screenH - rect.bottom;
+                let rect = originalRects[i];
+                let minX = -rect.left;
+                let maxX = screenW - rect.right;
+                let minY = -rect.top;
+                let maxY = screenH - rect.bottom;
 
-            tx = Math.max(minX, Math.min(maxX, tx));
-            ty = Math.max(minY, Math.min(maxY, ty));
+                tx = Math.max(minX, Math.min(maxX, tx));
+                ty = Math.max(minY, Math.min(maxY, ty));
 
-            el.dataset.tx = tx;
-            el.dataset.ty = ty;
+                el.dataset.tx = tx;
+                el.dataset.ty = ty;
 
-            el.style.transform = `${originalTransforms[i]} translate(${tx}px, ${ty}px)`;
-        });
+                el.style.transform = `${originalTransforms[i]} translate(${tx}px, ${ty}px)`;
+            });
+        }
+        requestAnimationFrame(updatePhysics);
     }
-    requestAnimationFrame(updatePhysics);
-}
 
-    // Create motion toggle button
+    // Motion toggle button
     $(document).ready(function () {
         let btn = $('<button id="motionBtn">Enable Motion</button>').css({
             position: 'fixed',
@@ -281,11 +282,10 @@
                 localStorage.setItem('motionActive', 'false');
                 $(this).text("Enable Motion");
 
-                // Restore original transforms
                 items.forEach((el, i) => {
                     el.style.transform = originalTransforms[i];
-                    el.dataset.tx = 0;
-                    el.dataset.ty = 0;
+                    el.dataset.tx = "0";
+                    el.dataset.ty = "0";
                 });
             }
         });
