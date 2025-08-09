@@ -151,127 +151,137 @@
         options: { responsive: true }
     });
 
-    /* ===== Device Tilt Physics ===== */
-    let items = [], velocities = [], tiltForce = { x: 0, y: 0 }, motionActive = false, originalPositions = [];
+   /* ===== Device Tilt Physics (Smooth + In-Bounds) ===== */
+let items = [], velocities = [], tiltForce = { x: 0, y: 0 }, motionActive = false, startPositions = [];
 
-    function initClutterElements() {
-        const exclude = ["script", "style", "link", "canvas", ".sidebar", ".navbar", "header", "footer"];
-        items = Array.from(document.querySelectorAll(`body *:not(${exclude.join('):not(')})`))
-            .filter(el => el !== document.body && el !== document.documentElement);
+// Smooth interpolation helper
+function lerp(a, b, t) {
+    return a + (b - a) * t;
+}
 
-        velocities = items.map(() => ({ x: 0, y: 0 }));
-        originalPositions = items.map(el => el.getBoundingClientRect());
+function initClutterElements() {
+    const exclude = ["script", "style", "link", "canvas", ".sidebar", ".navbar", "header", "footer"];
+    items = Array.from(document.querySelectorAll(`body *:not(${exclude.join('):not(')})`))
+        .filter(el => el !== document.body && el !== document.documentElement);
 
-        items.forEach(el => {
-            el.style.position = "relative";
-            el.dataset.tx = 0;
-            el.dataset.ty = 0;
-        });
-    }
+    velocities = items.map(() => ({ x: 0, y: 0 }));
+    startPositions = items.map(el => {
+        const rect = el.getBoundingClientRect();
+        return { left: rect.left, top: rect.top };
+    });
 
-    function requestMotionPermission() {
-        if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
-            DeviceMotionEvent.requestPermission().then(res => {
-                if (res === "granted") {
-                    window.addEventListener("deviceorientation", handleTilt);
-                    motionActive = true;
-                }
-            });
-        } else {
-            window.addEventListener("deviceorientation", handleTilt);
-            motionActive = true;
-        }
-    }
+    items.forEach(el => {
+        el.style.position = "relative";
+        el.dataset.tx = 0;
+        el.dataset.ty = 0;
+    });
+}
 
-    function handleTilt(event) {
-        tiltForce.x = (event.gamma || 0) / 40; // smaller = slower movement
-        tiltForce.y = (event.beta || 0) / 40;
-    }
-
-    function updatePhysics() {
-        const screenWidth = window.innerWidth;
-        const screenHeight = window.innerHeight;
-
-        items.forEach((el, i) => {
-            let tx = parseFloat(el.dataset.tx || 0);
-            let ty = parseFloat(el.dataset.ty || 0);
-
-            velocities[i].x += tiltForce.x;
-            velocities[i].y += tiltForce.y;
-
-            velocities[i].x *= 0.9; // friction
-            velocities[i].y *= 0.9;
-
-            tx += velocities[i].x;
-            ty += velocities[i].y;
-
-            const elWidth = originalPositions[i].width;
-            const elHeight = originalPositions[i].height;
-
-            const maxX = (screenWidth - elWidth) / 2;
-            const minX = -maxX;
-            const maxY = (screenHeight - elHeight) / 2;
-            const minY = -maxY;
-
-            tx = Math.max(minX, Math.min(maxX, tx));
-            ty = Math.max(minY, Math.min(maxY, ty));
-
-            el.dataset.tx = tx;
-            el.dataset.ty = ty;
-
-            el.style.transform = `translate(${tx}px, ${ty}px)`;
-        });
-
-        if (motionActive) requestAnimationFrame(updatePhysics);
-    }
-
-    $(document).ready(function () {
-        let btn = $('<button id="motionBtn">Enable Motion</button>').css({
-            position: 'fixed',
-            bottom: '20px',
-            right: '20px',
-            zIndex: 9999,
-            padding: '10px 15px',
-            background: '#222',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '14px'
-        });
-
-        $('body').append(btn);
-
-        let savedMotionState = localStorage.getItem('motionActive') === 'true';
-        motionActive = savedMotionState;
-
-        if (motionActive) {
-            initClutterElements();
-            requestMotionPermission();
-            btn.text("Disable Motion");
-            updatePhysics();
-        }
-
-        btn.on('click', function () {
-            if (!motionActive) {
-                initClutterElements();
-                requestMotionPermission();
+function requestMotionPermission() {
+    if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+        DeviceMotionEvent.requestPermission().then(res => {
+            if (res === "granted") {
+                window.addEventListener("deviceorientation", handleTilt);
                 motionActive = true;
-                localStorage.setItem('motionActive', 'true');
-                $(this).text("Disable Motion");
-                updatePhysics();
-            } else {
-                motionActive = false;
-                localStorage.setItem('motionActive', 'false');
-                $(this).text("Enable Motion");
-
-                items.forEach(el => {
-                    el.style.transform = '';
-                    el.dataset.tx = 0;
-                    el.dataset.ty = 0;
-                });
             }
         });
+    } else {
+        window.addEventListener("deviceorientation", handleTilt);
+        motionActive = true;
+    }
+}
+
+function handleTilt(event) {
+    // Smooth tilt target instead of instant change
+    tiltForce.targetX = (event.gamma || 0) / 30; 
+    tiltForce.targetY = (event.beta || 0) / 30;
+}
+
+function updatePhysics() {
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+
+    // Smoothly interpolate tilt
+    tiltForce.x = lerp(tiltForce.x || 0, tiltForce.targetX || 0, 0.1);
+    tiltForce.y = lerp(tiltForce.y || 0, tiltForce.targetY || 0, 0.1);
+
+    items.forEach((el, i) => {
+        let tx = parseFloat(el.dataset.tx || 0);
+        let ty = parseFloat(el.dataset.ty || 0);
+
+        velocities[i].x = lerp(velocities[i].x, tiltForce.x * 5, 0.1);
+        velocities[i].y = lerp(velocities[i].y, tiltForce.y * 5, 0.1);
+
+        tx += velocities[i].x;
+        ty += velocities[i].y;
+
+        const elWidth = el.offsetWidth;
+        const elHeight = el.offsetHeight;
+
+        const maxX = (screenWidth - elWidth) / 2;
+        const minX = -maxX;
+        const maxY = (screenHeight - elHeight) / 2;
+        const minY = -maxY;
+
+        tx = Math.max(minX, Math.min(maxX, tx));
+        ty = Math.max(minY, Math.min(maxY, ty));
+
+        el.dataset.tx = tx;
+        el.dataset.ty = ty;
+
+        el.style.transform = `translate(${tx}px, ${ty}px)`;
     });
+
+    if (motionActive) requestAnimationFrame(updatePhysics);
+}
+
+$(document).ready(function () {
+    let btn = $('<button id="motionBtn">Enable Motion</button>').css({
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        zIndex: 9999,
+        padding: '10px 15px',
+        background: '#222',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        fontSize: '14px'
+    });
+
+    $('body').append(btn);
+
+    let savedMotionState = localStorage.getItem('motionActive') === 'true';
+    motionActive = savedMotionState;
+
+    if (motionActive) {
+        initClutterElements();
+        requestMotionPermission();
+        btn.text("Disable Motion");
+        updatePhysics();
+    }
+
+    btn.on('click', function () {
+        if (!motionActive) {
+            initClutterElements();
+            requestMotionPermission();
+            motionActive = true;
+            localStorage.setItem('motionActive', 'true');
+            $(this).text("Disable Motion");
+            updatePhysics();
+        } else {
+            motionActive = false;
+            localStorage.setItem('motionActive', 'false');
+            $(this).text("Enable Motion");
+
+            items.forEach(el => {
+                el.style.transform = '';
+                el.dataset.tx = 0;
+                el.dataset.ty = 0;
+            });
+        }
+    });
+});
 
 })(jQuery);
