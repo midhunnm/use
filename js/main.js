@@ -161,6 +161,7 @@
         options: { responsive: true }
     });
 
+
     /* ========= Physics-Based Device Tilt Clutter ========= */
     let items = [];
     let velocities = [];
@@ -179,20 +180,61 @@
         });
     }
 
+    function checkMotionSupport() {
+        if (!('DeviceOrientationEvent' in window || 'DeviceMotionEvent' in window)) {
+            alert("⚠️ Motion sensors are not supported on this device/browser.");
+            return false;
+        }
+        if (location.protocol !== 'https:' && !location.hostname.includes('localhost')) {
+            console.warn("⚠️ Motion features require HTTPS on most devices (especially iOS).");
+            alert("Please view this page over HTTPS to enable motion features.");
+            return false;
+        }
+        return true;
+    }
+
     function requestMotionPermission() {
-        if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
-            DeviceMotionEvent.requestPermission()
+        if (!checkMotionSupport()) return;
+
+        let permissionFn = DeviceMotionEvent?.requestPermission || DeviceOrientationEvent?.requestPermission;
+
+        if (typeof permissionFn === "function") {
+            // iOS-like permission request
+            permissionFn.call(DeviceMotionEvent)
                 .then(response => {
                     if (response === "granted") {
-                        window.addEventListener("deviceorientation", handleTilt);
-                        motionActive = true;
+                        enableMotionEvents();
+                    } else {
+                        alert("Motion permission denied.");
                     }
                 })
-                .catch(console.error);
+                .catch(err => {
+                    console.error("Motion permission error:", err);
+                    alert("Unable to access motion sensors.");
+                });
         } else {
-            window.addEventListener("deviceorientation", handleTilt);
-            motionActive = true;
+            // For browsers without requestPermission API
+            enableMotionEvents();
         }
+    }
+
+    function enableMotionEvents() {
+        window.addEventListener("deviceorientation", handleTilt);
+        motionActive = true;
+        localStorage.setItem('motionActive', 'true');
+        initClutterElements();
+        $("#motionBtn").text("Disable Motion");
+    }
+
+    function disableMotionEvents() {
+        motionActive = false;
+        localStorage.setItem('motionActive', 'false');
+        $("#motionBtn").text("Enable Motion");
+        items.forEach(el => {
+            el.style.transform = '';
+            el.dataset.tx = 0;
+            el.dataset.ty = 0;
+        });
     }
 
     function handleTilt(event) {
@@ -221,57 +263,38 @@
         requestAnimationFrame(updatePhysics);
     }
 
-    // Create motion toggle button
+    // Create motion toggle button and bind events
     $(document).ready(function () {
-    let btn = $('<button id="motionBtn">Enable Motion</button>').css({
-        position: 'fixed',
-        bottom: '20px',
-        right: '20px',
-        zIndex: 9999,
-        padding: '10px 15px',
-        background: '#222',
-        color: '#fff',
-        border: 'none',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        fontSize: '14px'
-    });
+        let btn = $('<button id="motionBtn">Enable Motion</button>').css({
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            zIndex: 9999,
+            padding: '10px 15px',
+            background: '#222',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px'
+        });
 
-    $('body').append(btn);
+        $('body').append(btn);
 
-    // Load saved state from localStorage
-    let savedMotionState = localStorage.getItem('motionActive') === 'true';
-    motionActive = savedMotionState;
-
-    if (motionActive) {
-        initClutterElements();
-        requestMotionPermission();
-        btn.text("Disable Motion");
-    }
-
-    btn.on('click', function () {
-        if (!motionActive) {
-            initClutterElements();
+        // Restore saved state
+        if (localStorage.getItem('motionActive') === 'true' && checkMotionSupport()) {
             requestMotionPermission();
-            motionActive = true;
-            localStorage.setItem('motionActive', 'true');
-            $(this).text("Disable Motion");
-        } else {
-            motionActive = false;
-            localStorage.setItem('motionActive', 'false');
-            $(this).text("Enable Motion");
-
-            // Optional: reset transforms when disabling motion
-            items.forEach(el => {
-                el.style.transform = '';
-                el.dataset.tx = 0;
-                el.dataset.ty = 0;
-            });
         }
+
+        btn.on('click', function () {
+            if (!motionActive) {
+                requestMotionPermission();
+            } else {
+                disableMotionEvents();
+            }
+        });
+
+        updatePhysics();
     });
-
-    updatePhysics();
-});
-
 
 })(jQuery);
