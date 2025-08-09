@@ -219,38 +219,41 @@
         tiltForce.y = (event.beta || 0) / 20;
     }
 
-    function updatePhysics() {
-        if (motionActive) {
-            const screenW = window.innerWidth;
-            const screenH = window.innerHeight;
+    function update() {
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
 
-            items.forEach((el, i) => {
-                const orig = originalPositions[i];
+    items.forEach((el, i) => {
+        let tx = parseFloat(el.dataset.tx || 0);
+        let ty = parseFloat(el.dataset.ty || 0);
 
-                velocities[i].x += tiltForce.x * 0.5;
-                velocities[i].y += tiltForce.y * 0.5;
+        velocities[i].x *= 0.95; // friction
+        velocities[i].y *= 0.95;
 
-                velocities[i].x *= friction;
-                velocities[i].y *= friction;
+        tx += velocities[i].x;
+        ty += velocities[i].y;
 
-                let tx = parseFloat(el.dataset.tx) + velocities[i].x;
-                let ty = parseFloat(el.dataset.ty) + velocities[i].y;
+        // Get element size
+        const elWidth = originalPositions[i].width;
+        const elHeight = originalPositions[i].height;
 
-                const maxX = screenW - orig.width - orig.left;
-                const minX = -orig.left;
-                const maxY = screenH - orig.height - orig.top;
-                const minY = -orig.top;
+        // Clamp within viewport
+        const maxX = (screenWidth - elWidth) / 2;  // because we use translate relative
+        const minX = -maxX;
+        const maxY = (screenHeight - elHeight) / 2;
+        const minY = -maxY;
 
-                tx = Math.max(minX, Math.min(tx, maxX));
-                ty = Math.max(minY, Math.min(ty, maxY));
+        tx = Math.max(minX, Math.min(maxX, tx));
+        ty = Math.max(minY, Math.min(maxY, ty));
 
-                el.dataset.tx = tx;
-                el.dataset.ty = ty;
-                el.style.transform = `translate(${tx}px, ${ty}px)`;
-            });
-        }
-        requestAnimationFrame(updatePhysics);
-    }
+        el.dataset.tx = tx;
+        el.dataset.ty = ty;
+
+        el.style.transform = `translate(${tx}px, ${ty}px)`;
+    });
+
+    requestAnimationFrame(update);
+}
 
     // Create motion toggle button
     $(document).ready(function () {
