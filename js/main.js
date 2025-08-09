@@ -1,7 +1,7 @@
 (function ($) {
     "use strict";
 
-    // Spinner & other existing code...
+    // Spinner
     var spinner = function () {
         setTimeout(function () {
             if ($('#spinner').length > 0) {
@@ -30,54 +30,181 @@
         return false;
     });
 
-    // Progress Bar, Calendar, Testimonials, Charts - unchanged
-    // (Omitted for brevity, just keep your existing code here)
+    // Progress Bar
+    $('.pg-bar').waypoint(function () {
+        $('.progress .progress-bar').each(function () {
+            $(this).css("width", $(this).attr("aria-valuenow") + '%');
+        });
+    }, { offset: '80%' });
 
-    /* ========= Physics-Based Device Tilt Clutter ========= */
-    let handleTiltBound = handleTilt; // store reference for add/remove
-    let friction = 0.9;
+    // Calender
+    if ($('#calender').length) {
+        $('#calender').datetimepicker({
+            inline: true,
+            format: 'L'
+        });
+    }
+
+    // Testimonials carousel
+    if ($(".testimonial-carousel").length) {
+        $(".testimonial-carousel").owlCarousel({
+            autoplay: true,
+            smartSpeed: 1000,
+            items: 1,
+            dots: true,
+            loop: true,
+            nav: false
+        });
+    }
+
+    // ====== Safe Chart Initialization ======
+    function safeChart(selector, config) {
+        let el = $(selector).get(0);
+        if (el) {
+            new Chart(el.getContext("2d"), config);
+        } else {
+            console.warn(`⚠️ Skipping chart ${selector} — element not found.`);
+        }
+    }
+
+    // Worldwide Sales Chart
+    safeChart("#worldwide-sales", {
+        type: "bar",
+        data: {
+            labels: ["2016", "2017", "2018", "2019", "2020", "2021", "2022"],
+            datasets: [
+                { label: "USA", data: [15, 30, 55, 65, 60, 80, 95], backgroundColor: "rgba(0, 156, 255, .7)" },
+                { label: "UK", data: [8, 35, 40, 60, 70, 55, 75], backgroundColor: "rgba(0, 156, 255, .5)" },
+                { label: "AU", data: [12, 25, 45, 55, 65, 70, 60], backgroundColor: "rgba(0, 156, 255, .3)" }
+            ]
+        },
+        options: { responsive: true }
+    });
+
+    // Salse & Revenue Chart
+    safeChart("#salse-revenue", {
+        type: "line",
+        data: {
+            labels: ["2016", "2017", "2018", "2019", "2020", "2021", "2022"],
+            datasets: [
+                { label: "Salse", data: [15, 30, 55, 45, 70, 65, 85], backgroundColor: "rgba(0, 156, 255, .5)", fill: true },
+                { label: "Revenue", data: [99, 135, 170, 130, 190, 180, 270], backgroundColor: "rgba(0, 156, 255, .3)", fill: true }
+            ]
+        },
+        options: { responsive: true }
+    });
+
+    // Single Line Chart
+    safeChart("#line-chart", {
+        type: "line",
+        data: {
+            labels: [50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150],
+            datasets: [{ label: "Salse", fill: false, backgroundColor: "rgba(0, 156, 255, .3)", data: [7, 8, 8, 9, 9, 9, 10, 11, 14, 14, 15] }]
+        },
+        options: { responsive: true }
+    });
+
+    // Single Bar Chart
+    safeChart("#bar-chart", {
+        type: "bar",
+        data: {
+            labels: ["Italy", "France", "Spain", "USA", "Argentina"],
+            datasets: [{
+                backgroundColor: [
+                    "rgba(0, 156, 255, .7)",
+                    "rgba(0, 156, 255, .6)",
+                    "rgba(0, 156, 255, .5)",
+                    "rgba(0, 156, 255, .4)",
+                    "rgba(0, 156, 255, .3)"
+                ],
+                data: [55, 49, 44, 24, 15]
+            }]
+        },
+        options: { responsive: true }
+    });
+
+    // Pie Chart
+    safeChart("#pie-chart", {
+        type: "pie",
+        data: {
+            labels: ["Italy", "France", "Spain", "USA", "Argentina"],
+            datasets: [{
+                backgroundColor: [
+                    "rgba(0, 156, 255, .7)",
+                    "rgba(0, 156, 255, .6)",
+                    "rgba(0, 156, 255, .5)",
+                    "rgba(0, 156, 255, .4)",
+                    "rgba(0, 156, 255, .3)"
+                ],
+                data: [55, 49, 44, 24, 15]
+            }]
+        },
+        options: { responsive: true }
+    });
+
+    // Doughnut Chart
+    safeChart("#doughnut-chart", {
+        type: "doughnut",
+        data: {
+            labels: ["Italy", "France", "Spain", "USA", "Argentina"],
+            datasets: [{
+                backgroundColor: [
+                    "rgba(0, 156, 255, .7)",
+                    "rgba(0, 156, 255, .6)",
+                    "rgba(0, 156, 255, .5)",
+                    "rgba(0, 156, 255, .4)",
+                    "rgba(0, 156, 255, .3)"
+                ],
+                data: [55, 49, 44, 24, 15]
+            }]
+        },
+        options: { responsive: true }
+    });
+
+    /* ========= Physics-Based Device Tilt Clutter for ALL elements ========= */
+
+    let items = [];
     let velocities = [];
     let tiltForce = { x: 0, y: 0 };
-    let items = [];
+    let friction = 0.9;
     let motionActive = false;
+    let handleTiltBound = null;
 
     function initClutterElements() {
-        // Query clutter items freshly (in case DOM updated)
-        items = document.querySelectorAll(".clutter-item");
-        velocities = Array.from(items).map(() => ({ x: 0, y: 0 }));
+        // Select all elements except script, style, link, canvas
+        items = Array.from(document.querySelectorAll("body *:not(script):not(style):not(link):not(canvas)"));
+
+        velocities = items.map(() => ({ x: 0, y: 0 }));
 
         items.forEach(el => {
+            // Only set position if not already positioned to avoid layout issues
+            const pos = getComputedStyle(el).position;
+            if (pos !== "absolute" && pos !== "relative" && pos !== "fixed") {
+                el.style.position = "relative";
+            }
+            el.style.transition = "none";
             el.dataset.tx = 0;
             el.dataset.ty = 0;
             el.style.transform = "translate(0px, 0px)";
-            el.style.transition = "none"; // reset transition
         });
     }
 
     function requestMotionPermission() {
         if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
-            DeviceMotionEvent.requestPermission()
-                .then(response => {
-                    if (response === "granted") {
-                        window.addEventListener("deviceorientation", handleTiltBound);
-                    }
-                })
-                .catch(console.error);
+            return DeviceMotionEvent.requestPermission();
         } else {
-            window.addEventListener("deviceorientation", handleTiltBound);
+            // Permission not required on some platforms
+            return Promise.resolve("granted");
         }
     }
 
     function handleTilt(event) {
-        // Debug logs - remove if noisy
-        // console.log("handleTilt called:", event.gamma, event.beta);
-
-        tiltForce.x = (event.gamma || 0) / 10;
-        tiltForce.y = (event.beta || 0) / 10;
+        tiltForce.x = (event.gamma || 0) / 20;
+        tiltForce.y = (event.beta || 0) / 20;
     }
 
     function updatePhysics() {
-        if (motionActive && items.length > 0) {
+        if (motionActive && items.length) {
             let maxX = window.innerWidth / 2;
             let maxY = window.innerHeight / 2;
 
@@ -91,7 +218,7 @@
                 let tx = parseFloat(el.dataset.tx) + velocities[i].x;
                 let ty = parseFloat(el.dataset.ty) + velocities[i].y;
 
-                // Clamp so items don't drift off screen
+                // Clamp movements so no element drifts off too far
                 tx = Math.max(-maxX, Math.min(maxX, tx));
                 ty = Math.max(-maxY, Math.min(maxY, ty));
 
@@ -105,51 +232,64 @@
     }
 
     $(document).ready(function () {
-        // Auto-create toggle button if missing
-        if ($("#toggle-motion").length === 0) {
+        // Create motion toggle button if missing
+        if ($("#motionBtn").length === 0) {
             $("body").append(`
-                <button id="toggle-motion" 
+                <button id="motionBtn" 
                     style="
-                        position: fixed; 
-                        bottom: 20px; 
-                        right: 20px; 
-                        padding: 10px 15px; 
-                        font-size: 16px; 
-                        background: #333; 
-                        color: #fff; 
-                        border: none; 
-                        border-radius: 6px; 
+                        position: fixed;
+                        bottom: 20px;
+                        right: 20px;
+                        padding: 10px 15px;
+                        font-size: 14px;
+                        background: #222;
+                        color: #fff;
+                        border: none;
+                        border-radius: 6px;
                         cursor: pointer;
-                        z-index: 9999;">
-                    Enable Motion
-                </button>
+                        z-index: 9999;
+                    ">Enable Motion</button>
             `);
         }
 
-        let btn = $("#toggle-motion");
+        let btn = $("#motionBtn");
+
+        handleTiltBound = handleTilt.bind(null);
+
+        // Restore motion state from localStorage
+        if (localStorage.getItem("motionActive") === "true") {
+            initClutterElements();
+            requestMotionPermission().then(response => {
+                if (response === "granted") {
+                    window.addEventListener("deviceorientation", handleTiltBound);
+                    motionActive = true;
+                    btn.text("Disable Motion");
+                }
+            });
+        }
 
         btn.on("click", function () {
             if (!motionActive) {
                 initClutterElements();
-                requestMotionPermission();
-                motionActive = true;
-                localStorage.setItem("motionActive", "true");
-                $(this).text("Disable Motion");
+                requestMotionPermission().then(response => {
+                    if (response === "granted") {
+                        window.addEventListener("deviceorientation", handleTiltBound);
+                        motionActive = true;
+                        localStorage.setItem("motionActive", "true");
+                        btn.text("Disable Motion");
+                    } else {
+                        alert("Motion permission denied or not supported.");
+                    }
+                });
             } else {
                 motionActive = false;
                 localStorage.setItem("motionActive", "false");
-                $(this).text("Enable Motion");
-
+                btn.text("Enable Motion");
                 window.removeEventListener("deviceorientation", handleTiltBound);
                 tiltForce.x = 0;
                 tiltForce.y = 0;
 
-                document.body.style.transition = "transform 0.4s ease-out";
-                document.body.style.transform = "none";
-                setTimeout(() => {
-                    document.body.style.transition = "none";
-                }, 400);
-
+                // Reset all transforms smoothly on disable
                 items.forEach(el => {
                     el.style.transition = "transform 0.5s ease-out";
                     el.style.transform = "translate(0px, 0px)";
@@ -162,13 +302,7 @@
             }
         });
 
-        // Start the physics update loop
         updatePhysics();
-
-        // Restore motion setting if stored
-        if (localStorage.getItem("motionActive") === "true") {
-            btn.trigger("click");
-        }
     });
 
 })(jQuery);
