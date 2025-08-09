@@ -184,13 +184,13 @@
             DeviceMotionEvent.requestPermission()
                 .then(response => {
                     if (response === "granted") {
-                        window.addEventListener("deviceorientation", handleTilt);
+                        window.addEventListener("deviceorientation", handleTiltBound);
                         motionActive = true;
                     }
                 })
                 .catch(console.error);
         } else {
-            window.addEventListener("deviceorientation", handleTilt);
+            window.addEventListener("deviceorientation", handleTiltBound);
             motionActive = true;
         }
     }
@@ -199,94 +199,95 @@
         tiltForce.x = (event.gamma || 0) / 20;
         tiltForce.y = (event.beta || 0) / 20;
     }
+    let handleTiltBound = handleTilt; // keep reference for removing
 
     function updatePhysics() {
-    if (motionActive) {
-        let maxX = window.innerWidth / 2;  // half width movement limit
-        let maxY = window.innerHeight / 2; // half height movement limit
+        if (motionActive) {
+            let maxX = window.innerWidth / 2;  // half width movement limit
+            let maxY = window.innerHeight / 2; // half height movement limit
 
-        items.forEach((el, i) => {
-            velocities[i].x += tiltForce.x + (Math.random() - 0.5) * 0.2;
-            velocities[i].y += tiltForce.y + (Math.random() - 0.5) * 0.2;
+            items.forEach((el, i) => {
+                velocities[i].x += tiltForce.x + (Math.random() - 0.5) * 0.2;
+                velocities[i].y += tiltForce.y + (Math.random() - 0.5) * 0.2;
 
-            velocities[i].x *= friction;
-            velocities[i].y *= friction;
+                velocities[i].x *= friction;
+                velocities[i].y *= friction;
 
-            let tx = parseFloat(el.dataset.tx) + velocities[i].x;
-            let ty = parseFloat(el.dataset.ty) + velocities[i].y;
+                let tx = parseFloat(el.dataset.tx) + velocities[i].x;
+                let ty = parseFloat(el.dataset.ty) + velocities[i].y;
 
-            // Clamp position to keep items visible
-            tx = Math.max(-maxX, Math.min(maxX, tx));
-            ty = Math.max(-maxY, Math.min(maxY, ty));
+                // Clamp position to keep items visible
+                tx = Math.max(-maxX, Math.min(maxX, tx));
+                ty = Math.max(-maxY, Math.min(maxY, ty));
 
-            el.dataset.tx = tx;
-            el.dataset.ty = ty;
+                el.dataset.tx = tx;
+                el.dataset.ty = ty;
 
-            el.style.transform = `translate(${tx}px, ${ty}px)`;
-        });
+                el.style.transform = `translate(${tx}px, ${ty}px)`;
+            });
+        }
+        requestAnimationFrame(updatePhysics);
     }
-    requestAnimationFrame(updatePhysics);
-}
-
 
     // Create motion toggle button
     $(document).ready(function () {
-    let btn = $('<button id="motionBtn">Enable Motion</button>').css({
-        position: 'fixed',
-        bottom: '20px',
-        right: '20px',
-        zIndex: 9999,
-        padding: '10px 15px',
-        background: '#222',
-        color: '#fff',
-        border: 'none',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        fontSize: '14px'
-    });
-
-    $('body').append(btn);
-
-    // Load saved state from localStorage
-    let savedMotionState = localStorage.getItem('motionActive') === 'true';
-    motionActive = savedMotionState;
-
-    if (motionActive) {
-        initClutterElements();
-        requestMotionPermission();
-        btn.text("Disable Motion");
-    }
-
-   btn.on('click', function () {
-    if (!motionActive) {
-        initClutterElements();
-        requestMotionPermission();
-        motionActive = true;
-        localStorage.setItem('motionActive', 'true');
-        $(this).text("Disable Motion");
-    } else {
-        motionActive = false;
-        localStorage.setItem('motionActive', 'false');
-        $(this).text("Enable Motion");
-
-        // Smoothly reset transforms when disabling motion
-        items.forEach(el => {
-            el.style.transition = 'transform 0.5s ease-out'; // smooth transition
-            el.style.transform = 'translate(0px, 0px)';
-            el.dataset.tx = 0;
-            el.dataset.ty = 0;
-
-            // After animation, remove transition so physics works normally next time
-            setTimeout(() => {
-                el.style.transition = 'none';
-            }, 500);
+        let btn = $('<button id="motionBtn">Enable Motion</button>').css({
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            zIndex: 9999,
+            padding: '10px 15px',
+            background: '#222',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px'
         });
-    }
-});
 
+        $('body').append(btn);
 
-    updatePhysics();
-});
+        // Load saved state from localStorage
+        let savedMotionState = localStorage.getItem('motionActive') === 'true';
+        motionActive = savedMotionState;
 
+        if (motionActive) {
+            initClutterElements();
+            requestMotionPermission();
+            btn.text("Disable Motion");
+        }
+
+        btn.on('click', function () {
+            if (!motionActive) {
+                initClutterElements();
+                requestMotionPermission();
+                motionActive = true;
+                localStorage.setItem('motionActive', 'true');
+                $(this).text("Disable Motion");
+            } else {
+                motionActive = false;
+                localStorage.setItem('motionActive', 'false');
+                $(this).text("Enable Motion");
+
+                // Remove tilt event listener
+                window.removeEventListener("deviceorientation", handleTiltBound);
+
+                // Reset tilt force
+                tiltForce.x = 0;
+                tiltForce.y = 0;
+
+                // Smooth reset of positions
+                items.forEach(el => {
+                    el.style.transition = 'transform 0.5s ease-out';
+                    el.style.transform = 'translate(0px, 0px)';
+                    el.dataset.tx = 0;
+                    el.dataset.ty = 0;
+                    setTimeout(() => { el.style.transition = 'none'; }, 500);
+                });
+            }
+        });
+
+        updatePhysics();
+    });
 
 })(jQuery);
