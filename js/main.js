@@ -201,25 +201,33 @@
     }
 
     function updatePhysics() {
-        if (motionActive) {
-            items.forEach((el, i) => {
-                velocities[i].x += tiltForce.x + (Math.random() - 0.5) * 0.2;
-                velocities[i].y += tiltForce.y + (Math.random() - 0.5) * 0.2;
+    if (motionActive) {
+        let maxX = window.innerWidth / 2;  // half width movement limit
+        let maxY = window.innerHeight / 2; // half height movement limit
 
-                velocities[i].x *= friction;
-                velocities[i].y *= friction;
+        items.forEach((el, i) => {
+            velocities[i].x += tiltForce.x + (Math.random() - 0.5) * 0.2;
+            velocities[i].y += tiltForce.y + (Math.random() - 0.5) * 0.2;
 
-                let tx = parseFloat(el.dataset.tx) + velocities[i].x;
-                let ty = parseFloat(el.dataset.ty) + velocities[i].y;
+            velocities[i].x *= friction;
+            velocities[i].y *= friction;
 
-                el.dataset.tx = tx;
-                el.dataset.ty = ty;
+            let tx = parseFloat(el.dataset.tx) + velocities[i].x;
+            let ty = parseFloat(el.dataset.ty) + velocities[i].y;
 
-                el.style.transform = `translate(${tx}px, ${ty}px)`;
-            });
-        }
-        requestAnimationFrame(updatePhysics);
+            // Clamp position to keep items visible
+            tx = Math.max(-maxX, Math.min(maxX, tx));
+            ty = Math.max(-maxY, Math.min(maxY, ty));
+
+            el.dataset.tx = tx;
+            el.dataset.ty = ty;
+
+            el.style.transform = `translate(${tx}px, ${ty}px)`;
+        });
     }
+    requestAnimationFrame(updatePhysics);
+}
+
 
     // Create motion toggle button
     $(document).ready(function () {
