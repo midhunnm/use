@@ -11,7 +11,7 @@
     };
     spinner();
 
-    // Back to top
+    // Back to top button
     $(window).scroll(function () {
         if ($(this).scrollTop() > 300) {
             $('.back-to-top').fadeIn('slow');
@@ -24,22 +24,25 @@
         return false;
     });
 
-    // Sidebar toggler
+    // Sidebar Toggler
     $('.sidebar-toggler').click(function () {
         $('.sidebar, .content').toggleClass("open");
         return false;
     });
 
-    // Progress bar
+    // Progress Bar
     $('.pg-bar').waypoint(function () {
         $('.progress .progress-bar').each(function () {
             $(this).css("width", $(this).attr("aria-valuenow") + '%');
         });
     }, { offset: '80%' });
 
-    // Calendar
+    // Calender
     if ($('#calender').length) {
-        $('#calender').datetimepicker({ inline: true, format: 'L' });
+        $('#calender').datetimepicker({
+            inline: true,
+            format: 'L'
+        });
     }
 
     // Testimonials carousel
@@ -54,15 +57,17 @@
         });
     }
 
-    // Chart helper
+    // ====== Safe Chart Initialization ======
     function safeChart(selector, config) {
         let el = $(selector).get(0);
-        if (el && typeof Chart !== "undefined") {
+        if (el) {
             new Chart(el.getContext("2d"), config);
+        } else {
+            console.warn(`⚠️ Skipping chart ${selector} — element not found.`);
         }
     }
 
-    // Charts
+    // Worldwide Sales Chart
     safeChart("#worldwide-sales", {
         type: "bar",
         data: {
@@ -76,6 +81,7 @@
         options: { responsive: true }
     });
 
+    // Salse & Revenue Chart
     safeChart("#salse-revenue", {
         type: "line",
         data: {
@@ -88,6 +94,7 @@
         options: { responsive: true }
     });
 
+    // Single Line Chart
     safeChart("#line-chart", {
         type: "line",
         data: {
@@ -97,6 +104,7 @@
         options: { responsive: true }
     });
 
+    // Single Bar Chart
     safeChart("#bar-chart", {
         type: "bar",
         data: {
@@ -115,6 +123,7 @@
         options: { responsive: true }
     });
 
+    // Pie Chart
     safeChart("#pie-chart", {
         type: "pie",
         data: {
@@ -133,6 +142,7 @@
         options: { responsive: true }
     });
 
+    // Doughnut Chart
     safeChart("#doughnut-chart", {
         type: "doughnut",
         data: {
@@ -151,91 +161,68 @@
         options: { responsive: true }
     });
 
-   /* ===== Device Tilt Physics (Smooth + In-Bounds) ===== */
-let items = [], velocities = [], tiltForce = { x: 0, y: 0 }, motionActive = false, startPositions = [];
+    /* ========= Physics-Based Device Tilt Clutter ========= */
+    let items = [];
+    let velocities = [];
+    let tiltForce = { x: 0, y: 0 };
+    let friction = 0.9;
+    let motionActive = false;
 
-// Smooth interpolation helper
-function lerp(a, b, t) {
-    return a + (b - a) * t;
-}
-
-function initClutterElements() {
-    const exclude = ["script", "style", "link", "canvas", ".sidebar", ".navbar", "header", "footer"];
-    items = Array.from(document.querySelectorAll(`body *:not(${exclude.join('):not(')})`))
-        .filter(el => el !== document.body && el !== document.documentElement);
-
-    velocities = items.map(() => ({ x: 0, y: 0 }));
-    startPositions = items.map(el => {
-        const rect = el.getBoundingClientRect();
-        return { left: rect.left, top: rect.top };
-    });
-
-    items.forEach(el => {
-        el.style.position = "relative";
-        el.dataset.tx = 0;
-        el.dataset.ty = 0;
-    });
-}
-
-function requestMotionPermission() {
-    if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
-        DeviceMotionEvent.requestPermission().then(res => {
-            if (res === "granted") {
-                window.addEventListener("deviceorientation", handleTilt);
-                motionActive = true;
-            }
+    function initClutterElements() {
+        items = Array.from(document.querySelectorAll("body *:not(script):not(style):not(link):not(canvas)"));
+        velocities = items.map(() => ({ x: 0, y: 0 }));
+        items.forEach(el => {
+            el.style.position = "relative";
+            el.style.transition = "none";
+            el.dataset.tx = 0;
+            el.dataset.ty = 0;
         });
-    } else {
-        window.addEventListener("deviceorientation", handleTilt);
-        motionActive = true;
     }
-}
 
-function handleTilt(event) {
-    // Smooth tilt target instead of instant change
-    tiltForce.targetX = (event.gamma || 0) / 30; 
-    tiltForce.targetY = (event.beta || 0) / 30;
-}
+    function requestMotionPermission() {
+        if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+            DeviceMotionEvent.requestPermission()
+                .then(response => {
+                    if (response === "granted") {
+                        window.addEventListener("deviceorientation", handleTilt);
+                        motionActive = true;
+                    }
+                })
+                .catch(console.error);
+        } else {
+            window.addEventListener("deviceorientation", handleTilt);
+            motionActive = true;
+        }
+    }
 
-function updatePhysics() {
-    const screenWidth = window.innerWidth;
-    const screenHeight = window.innerHeight;
+    function handleTilt(event) {
+        tiltForce.x = (event.gamma || 0) / 20;
+        tiltForce.y = (event.beta || 0) / 20;
+    }
 
-    // Smoothly interpolate tilt
-    tiltForce.x = lerp(tiltForce.x || 0, tiltForce.targetX || 0, 0.1);
-    tiltForce.y = lerp(tiltForce.y || 0, tiltForce.targetY || 0, 0.1);
+    function updatePhysics() {
+        if (motionActive) {
+            items.forEach((el, i) => {
+                velocities[i].x += tiltForce.x + (Math.random() - 0.5) * 0.2;
+                velocities[i].y += tiltForce.y + (Math.random() - 0.5) * 0.2;
 
-    items.forEach((el, i) => {
-        let tx = parseFloat(el.dataset.tx || 0);
-        let ty = parseFloat(el.dataset.ty || 0);
+                velocities[i].x *= friction;
+                velocities[i].y *= friction;
 
-        velocities[i].x = lerp(velocities[i].x, tiltForce.x * 5, 0.1);
-        velocities[i].y = lerp(velocities[i].y, tiltForce.y * 5, 0.1);
+                let tx = parseFloat(el.dataset.tx) + velocities[i].x;
+                let ty = parseFloat(el.dataset.ty) + velocities[i].y;
 
-        tx += velocities[i].x;
-        ty += velocities[i].y;
+                el.dataset.tx = tx;
+                el.dataset.ty = ty;
 
-        const elWidth = el.offsetWidth;
-        const elHeight = el.offsetHeight;
+                el.style.transform = `translate(${tx}px, ${ty}px)`;
+            });
+        }
+        requestAnimationFrame(updatePhysics);
+    }
 
-        const maxX = (screenWidth - elWidth) / 2;
-        const minX = -maxX;
-        const maxY = (screenHeight - elHeight) / 2;
-        const minY = -maxY;
-
-        tx = Math.max(minX, Math.min(maxX, tx));
-        ty = Math.max(minY, Math.min(maxY, ty));
-
-        el.dataset.tx = tx;
-        el.dataset.ty = ty;
-
-        el.style.transform = `translate(${tx}px, ${ty}px)`;
-    });
-
-    if (motionActive) requestAnimationFrame(updatePhysics);
-}
-
-$(document).ready(function () {
+    // Create motion toggle button
+    $(document).ready(function () {
     let btn = $('<button id="motionBtn">Enable Motion</button>').css({
         position: 'fixed',
         bottom: '20px',
@@ -252,6 +239,7 @@ $(document).ready(function () {
 
     $('body').append(btn);
 
+    // Load saved state from localStorage
     let savedMotionState = localStorage.getItem('motionActive') === 'true';
     motionActive = savedMotionState;
 
@@ -259,7 +247,6 @@ $(document).ready(function () {
         initClutterElements();
         requestMotionPermission();
         btn.text("Disable Motion");
-        updatePhysics();
     }
 
     btn.on('click', function () {
@@ -269,12 +256,12 @@ $(document).ready(function () {
             motionActive = true;
             localStorage.setItem('motionActive', 'true');
             $(this).text("Disable Motion");
-            updatePhysics();
         } else {
             motionActive = false;
             localStorage.setItem('motionActive', 'false');
             $(this).text("Enable Motion");
 
+            // Optional: reset transforms when disabling motion
             items.forEach(el => {
                 el.style.transform = '';
                 el.dataset.tx = 0;
@@ -282,6 +269,9 @@ $(document).ready(function () {
             });
         }
     });
+
+    updatePhysics();
 });
+
 
 })(jQuery);
