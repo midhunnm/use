@@ -81,13 +81,13 @@
         options: { responsive: true }
     });
 
-    // Sales & Revenue Chart
+    // Salse & Revenue Chart
     safeChart("#salse-revenue", {
         type: "line",
         data: {
             labels: ["2016", "2017", "2018", "2019", "2020", "2021", "2022"],
             datasets: [
-                { label: "Sales", data: [15, 30, 55, 45, 70, 65, 85], backgroundColor: "rgba(0, 156, 255, .5)", fill: true },
+                { label: "Salse", data: [15, 30, 55, 45, 70, 65, 85], backgroundColor: "rgba(0, 156, 255, .5)", fill: true },
                 { label: "Revenue", data: [99, 135, 170, 130, 190, 180, 270], backgroundColor: "rgba(0, 156, 255, .3)", fill: true }
             ]
         },
@@ -99,7 +99,7 @@
         type: "line",
         data: {
             labels: [50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150],
-            datasets: [{ label: "Sales", fill: false, backgroundColor: "rgba(0, 156, 255, .3)", data: [7, 8, 8, 9, 9, 9, 10, 11, 14, 14, 15] }]
+            datasets: [{ label: "Salse", fill: false, backgroundColor: "rgba(0, 156, 255, .3)", data: [7, 8, 8, 9, 9, 9, 10, 11, 14, 14, 15] }]
         },
         options: { responsive: true }
     });
@@ -161,136 +161,124 @@
         options: { responsive: true }
     });
 
-    /* ========= Fixed Physics-Based Device Tilt ========= */
-    let items = [];
-    let velocities = [];
-    let tiltForce = { x: 0, y: 0 };
-    let friction = 0.95;
-    let motionActive = false;
-    let originalTransforms = [];
-    let originalRects = [];
+   /* ========= Physics-Based Device Tilt Clutter ========= */
+let items = [];
+let velocities = [];
+let tiltForce = { x: 0, y: 0 };
+let friction = 0.9;
+let motionActive = false;
+let originalTransforms = []; // <-- Store original transforms
 
-    function initClutterElements() {
-        items = Array.from(document.querySelectorAll("body *:not(script):not(style):not(link):not(canvas)"));
-        velocities = items.map(() => ({ x: 0, y: 0 }));
-        originalTransforms = items.map(el => el.style.transform || "");
-        originalRects = items.map(el => el.getBoundingClientRect());
+function initClutterElements() {
+    items = Array.from(document.querySelectorAll("body *:not(script):not(style):not(link):not(canvas)"));
+    velocities = items.map(() => ({ x: 0, y: 0 }));
+    originalTransforms = items.map(el => el.style.transform || ""); // Save original
 
-        items.forEach(el => {
-            if (getComputedStyle(el).position === "static") {
-                el.style.position = "relative";
-            }
-            el.style.transition = "none";
-            el.dataset.tx = "0";
-            el.dataset.ty = "0";
+    items.forEach(el => {
+        // Avoid breaking absolute/fixed elements
+        if (getComputedStyle(el).position === "static") {
+            el.style.position = "relative";
+        }
+        el.style.transition = "none";
+        el.dataset.tx = 0;
+        el.dataset.ty = 0;
+    });
+}
+
+function requestMotionPermission() {
+    if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+        DeviceMotionEvent.requestPermission()
+            .then(response => {
+                if (response === "granted") {
+                    window.addEventListener("deviceorientation", handleTilt);
+                    motionActive = true;
+                }
+            })
+            .catch(console.error);
+    } else {
+        window.addEventListener("deviceorientation", handleTilt);
+        motionActive = true;
+    }
+}
+
+function handleTilt(event) {
+    tiltForce.x = (event.gamma || 0) / 20;
+    tiltForce.y = (event.beta || 0) / 20;
+}
+
+function updatePhysics() {
+    if (motionActive) {
+        items.forEach((el, i) => {
+            velocities[i].x += tiltForce.x + (Math.random() - 0.5) * 0.2;
+            velocities[i].y += tiltForce.y + (Math.random() - 0.5) * 0.2;
+
+            velocities[i].x *= friction;
+            velocities[i].y *= friction;
+
+            let tx = parseFloat(el.dataset.tx) + velocities[i].x;
+            let ty = parseFloat(el.dataset.ty) + velocities[i].y;
+
+            el.dataset.tx = tx;
+            el.dataset.ty = ty;
+
+            el.style.transform = `${originalTransforms[i]} translate(${tx}px, ${ty}px)`;
         });
     }
+    requestAnimationFrame(updatePhysics);
+}
 
-    function requestMotionPermission() {
-        if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
-            DeviceMotionEvent.requestPermission()
-                .then(response => {
-                    if (response === "granted") {
-                        window.addEventListener("deviceorientation", handleTilt);
-                        motionActive = true;
-                    }
-                })
-                .catch(console.error);
-        } else {
-            window.addEventListener("deviceorientation", handleTilt);
-            motionActive = true;
-        }
+// Create motion toggle button
+$(document).ready(function () {
+    let btn = $('<button id="motionBtn">Enable Motion</button>').css({
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        zIndex: 9999,
+        padding: '10px 15px',
+        background: '#222',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        fontSize: '14px'
+    });
+
+    $('body').append(btn);
+
+    // Load saved state from localStorage
+    let savedMotionState = localStorage.getItem('motionActive') === 'true';
+    motionActive = savedMotionState;
+
+    if (motionActive) {
+        initClutterElements();
+        requestMotionPermission();
+        btn.text("Disable Motion");
     }
 
-    function handleTilt(event) {
-        tiltForce.x = (event.gamma || 0) / 15;
-        tiltForce.y = (event.beta || 0) / 15;
-    }
-
-    function updatePhysics() {
-        if (motionActive) {
-            let screenW = window.innerWidth;
-            let screenH = window.innerHeight;
-
-            items.forEach((el, i) => {
-                velocities[i].x += tiltForce.x;
-                velocities[i].y += tiltForce.y;
-
-                velocities[i].x *= friction;
-                velocities[i].y *= friction;
-
-                let tx = parseFloat(el.dataset.tx) || 0;
-                let ty = parseFloat(el.dataset.ty) || 0;
-
-                tx += velocities[i].x;
-                ty += velocities[i].y;
-
-                let rect = originalRects[i];
-                let minX = -rect.left;
-                let maxX = screenW - rect.right;
-                let minY = -rect.top;
-                let maxY = screenH - rect.bottom;
-
-                tx = Math.max(minX, Math.min(maxX, tx));
-                ty = Math.max(minY, Math.min(maxY, ty));
-
-                el.dataset.tx = tx;
-                el.dataset.ty = ty;
-
-                el.style.transform = `${originalTransforms[i]} translate(${tx}px, ${ty}px)`;
-            });
-        }
-        requestAnimationFrame(updatePhysics);
-    }
-
-    // Motion toggle button
-    $(document).ready(function () {
-        let btn = $('<button id="motionBtn">Enable Motion</button>').css({
-            position: 'fixed',
-            bottom: '20px',
-            right: '20px',
-            zIndex: 9999,
-            padding: '10px 15px',
-            background: '#222',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '14px'
-        });
-
-        $('body').append(btn);
-
-        let savedMotionState = localStorage.getItem('motionActive') === 'true';
-        motionActive = savedMotionState;
-
-        if (motionActive) {
+    btn.on('click', function () {
+        if (!motionActive) {
             initClutterElements();
             requestMotionPermission();
-            btn.text("Disable Motion");
+            motionActive = true;
+            localStorage.setItem('motionActive', 'true');
+            $(this).text("Disable Motion");
+        } else {
+            motionActive = false;
+            localStorage.setItem('motionActive', 'false');
+            $(this).text("Enable Motion");
+
+            // Restore original transforms
+            items.forEach((el, i) => {
+                el.style.transform = originalTransforms[i];
+                el.dataset.tx = 0;
+                el.dataset.ty = 0;
+            });
         }
-
-        btn.on('click', function () {
-            if (!motionActive) {
-                initClutterElements();
-                requestMotionPermission();
-                motionActive = true;
-                localStorage.setItem('motionActive', 'true');
-                $(this).text("Disable Motion");
-            } else {
-                motionActive = false;
-                localStorage.setItem('motionActive', 'false');
-                $(this).text("Enable Motion");
-
-                items.forEach((el, i) => {
-                    el.style.transform = originalTransforms[i];
-                    el.dataset.tx = "0";
-                    el.dataset.ty = "0";
-                });
-            }
-        });
-
-        updatePhysics();
     });
+
+    updatePhysics();
+});
+
+
 
 })(jQuery);
