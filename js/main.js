@@ -37,7 +37,7 @@
         });
     }, { offset: '80%' });
 
-    // Calender
+    // Calendar
     if ($('#calender').length) {
         $('#calender').datetimepicker({
             inline: true,
@@ -67,7 +67,7 @@
         }
     }
 
-    // Worldwide Sales Chart
+    // Charts (unchanged)
     safeChart("#worldwide-sales", {
         type: "bar",
         data: {
@@ -81,7 +81,6 @@
         options: { responsive: true }
     });
 
-    // Salse & Revenue Chart
     safeChart("#salse-revenue", {
         type: "line",
         data: {
@@ -94,7 +93,6 @@
         options: { responsive: true }
     });
 
-    // Single Line Chart
     safeChart("#line-chart", {
         type: "line",
         data: {
@@ -104,7 +102,6 @@
         options: { responsive: true }
     });
 
-    // Single Bar Chart
     safeChart("#bar-chart", {
         type: "bar",
         data: {
@@ -123,7 +120,6 @@
         options: { responsive: true }
     });
 
-    // Pie Chart
     safeChart("#pie-chart", {
         type: "pie",
         data: {
@@ -142,7 +138,6 @@
         options: { responsive: true }
     });
 
-    // Doughnut Chart
     safeChart("#doughnut-chart", {
         type: "doughnut",
         data: {
@@ -167,10 +162,15 @@
     let tiltForce = { x: 0, y: 0 };
     let friction = 0.9;
     let motionActive = false;
+    let originalPositions = [];
 
     function initClutterElements() {
         items = Array.from(document.querySelectorAll("body *:not(script):not(style):not(link):not(canvas)"));
         velocities = items.map(() => ({ x: 0, y: 0 }));
+        originalPositions = items.map(el => {
+            const rect = el.getBoundingClientRect();
+            return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+        });
         items.forEach(el => {
             el.style.position = "relative";
             el.style.transition = "none";
@@ -200,111 +200,87 @@
         tiltForce.y = (event.beta || 0) / 20;
     }
 
-    let originalPositions = [];
+    function updatePhysics() {
+        if (motionActive) {
+            const screenW = window.innerWidth;
+            const screenH = window.innerHeight;
 
-function initClutterElements() {
-    items = Array.from(document.querySelectorAll("body *:not(script):not(style):not(link):not(canvas)"));
-    velocities = items.map(() => ({ x: 0, y: 0 }));
-    originalPositions = items.map(el => {
-        const rect = el.getBoundingClientRect();
-        return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
-    });
-    items.forEach(el => {
-        el.style.position = "relative";
-        el.style.transition = "none";
-        el.dataset.tx = 0;
-        el.dataset.ty = 0;
-    });
-}
+            items.forEach((el, i) => {
+                const orig = originalPositions[i];
 
-function updatePhysics() {
-    if (motionActive) {
-        const screenW = window.innerWidth;
-        const screenH = window.innerHeight;
+                velocities[i].x += tiltForce.x * 0.5;
+                velocities[i].y += tiltForce.y * 0.5;
 
-        items.forEach((el, i) => {
-            const orig = originalPositions[i];
+                velocities[i].x *= friction;
+                velocities[i].y *= friction;
 
-            velocities[i].x += tiltForce.x * 0.5; // slower movement
-            velocities[i].y += tiltForce.y * 0.5;
+                let tx = parseFloat(el.dataset.tx) + velocities[i].x;
+                let ty = parseFloat(el.dataset.ty) + velocities[i].y;
 
-            velocities[i].x *= friction;
-            velocities[i].y *= friction;
+                const maxX = screenW - orig.width - orig.left;
+                const minX = -orig.left;
+                const maxY = screenH - orig.height - orig.top;
+                const minY = -orig.top;
 
-            let tx = parseFloat(el.dataset.tx) + velocities[i].x;
-            let ty = parseFloat(el.dataset.ty) + velocities[i].y;
+                tx = Math.max(minX, Math.min(tx, maxX));
+                ty = Math.max(minY, Math.min(ty, maxY));
 
-            // Calculate allowed movement so element stays within viewport
-            const maxX = screenW - orig.width - orig.left;
-            const minX = -orig.left;
-            const maxY = screenH - orig.height - orig.top;
-            const minY = -orig.top;
-
-            // Clamp position
-            tx = Math.max(minX, Math.min(tx, maxX));
-            ty = Math.max(minY, Math.min(ty, maxY));
-
-            el.dataset.tx = tx;
-            el.dataset.ty = ty;
-            el.style.transform = `translate(${tx}px, ${ty}px)`;
-        });
+                el.dataset.tx = tx;
+                el.dataset.ty = ty;
+                el.style.transform = `translate(${tx}px, ${ty}px)`;
+            });
+        }
+        requestAnimationFrame(updatePhysics);
     }
-    requestAnimationFrame(updatePhysics);
-}
-
-
 
     // Create motion toggle button
     $(document).ready(function () {
-    let btn = $('<button id="motionBtn">Enable Motion</button>').css({
-        position: 'fixed',
-        bottom: '20px',
-        right: '20px',
-        zIndex: 9999,
-        padding: '10px 15px',
-        background: '#222',
-        color: '#fff',
-        border: 'none',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        fontSize: '14px'
-    });
+        let btn = $('<button id="motionBtn">Enable Motion</button>').css({
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            zIndex: 9999,
+            padding: '10px 15px',
+            background: '#222',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px'
+        });
 
-    $('body').append(btn);
+        $('body').append(btn);
 
-    // Load saved state from localStorage
-    let savedMotionState = localStorage.getItem('motionActive') === 'true';
-    motionActive = savedMotionState;
+        let savedMotionState = localStorage.getItem('motionActive') === 'true';
+        motionActive = savedMotionState;
 
-    if (motionActive) {
-        initClutterElements();
-        requestMotionPermission();
-        btn.text("Disable Motion");
-    }
-
-    btn.on('click', function () {
-        if (!motionActive) {
+        if (motionActive) {
             initClutterElements();
             requestMotionPermission();
-            motionActive = true;
-            localStorage.setItem('motionActive', 'true');
-            $(this).text("Disable Motion");
-        } else {
-            motionActive = false;
-            localStorage.setItem('motionActive', 'false');
-            $(this).text("Enable Motion");
-
-            // Optional: reset transforms when disabling motion
-            items.forEach(el => {
-                el.style.transform = '';
-                el.dataset.tx = 0;
-                el.dataset.ty = 0;
-            });
+            btn.text("Disable Motion");
         }
+
+        btn.on('click', function () {
+            if (!motionActive) {
+                initClutterElements();
+                requestMotionPermission();
+                motionActive = true;
+                localStorage.setItem('motionActive', 'true');
+                $(this).text("Disable Motion");
+            } else {
+                motionActive = false;
+                localStorage.setItem('motionActive', 'false');
+                $(this).text("Enable Motion");
+
+                items.forEach(el => {
+                    el.style.transform = '';
+                    el.dataset.tx = 0;
+                    el.dataset.ty = 0;
+                });
+            }
+        });
+
+        updatePhysics();
     });
-
-    updatePhysics();
-});
-
 
 })(jQuery);
